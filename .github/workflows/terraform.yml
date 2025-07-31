@@ -58,9 +58,10 @@ jobs:
 
       - name: Terraform Init
         run: terraform init -backend-config="bucket=${BUCKET_TF_STATE}"
-      - name: Select or Create Workspace
+      - name: Set ENV_NAME and select/create workspace
         run: |
-          terraform workspace select ${{ github.event.inputs.env }} || terraform workspace new ${{ github.event.inputs.env }}
+          echo "ENV_NAME=${{ github.event.inputs.env || github.ref_name }}" >> $GITHUB_ENV
+          terraform workspace select "$ENV_NAME" || terraform workspace new "$ENV_NAME"
 
       - name: Terraform Fmt
         run: terraform fmt -check=true -diff=true
