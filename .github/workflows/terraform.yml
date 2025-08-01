@@ -103,7 +103,8 @@ jobs:
         run: pip install checkov
 
       - name: Run Checkov HTML Report
-        run: checkov -d . --output html > checkov-report.html
+        run: checkov -d . --output json --output-file-path checkov-report.json
+
 
       - name: Upload Checkov HTML Report
         uses: actions/upload-artifact@v4
