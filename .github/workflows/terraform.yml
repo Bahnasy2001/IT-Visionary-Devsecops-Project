@@ -85,6 +85,13 @@ jobs:
       - name: Convert plan to JSON
         run: terraform show -json tfplan > tfplan.json
 
+      - name: List files
+        run: ls -lah
+
+      - name: Show tfplan.json content
+        run: head -n 20 tfplan.json
+  
+
       - name: Install Checkov
         run: pip install checkov
 
