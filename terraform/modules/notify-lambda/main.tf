@@ -24,12 +24,18 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect = "Allow",
         Action = [
           "ses:SendEmail",
-          "ses:SendRawEmail"
+          "ses:SendRawEmail",
+          "sns:Publish"
         ],
-        Resource = "arn:aws:ses:us-east-1:911167904183:identity/ahmedrafat530@gmail.com"      }
+        Resource = [
+          "arn:aws:ses:us-east-1:911167904183:identity/ahmedrafat530@gmail.com",
+          aws_sns_topic.terraform_notifications.arn
+        ]
+      }
     ]
   })
 }
+
 #Checkov skip comments must be placed directly above the resource
 
 resource "aws_lambda_function" "notify" {
@@ -54,6 +60,8 @@ resource "aws_lambda_function" "notify" {
     variables = {
       SES_SENDER    = var.ses_sender_email
       SES_RECIPIENT = var.ses_recipient_email
+      SNS_TOPIC_ARN = aws_sns_topic.terraform_notifications.arn
+
       
     }
   }
@@ -83,3 +91,14 @@ resource "aws_cloudwatch_event_target" "lambda_target" {
   arn       = aws_lambda_function.notify.arn
 }
 
+resource "aws_sns_topic" "terraform_notifications" {
+  # checkov:skip=CKV_AWS_26:Environment variables don't contain sensitive data
+
+  name = "terraform-notifications-topic"
+}
+
+resource "aws_sns_topic_subscription" "email_subscription" {
+  topic_arn = aws_sns_topic.terraform_notifications.arn
+  protocol  = "email"
+  endpoint  = var.ses_recipient_email
+}

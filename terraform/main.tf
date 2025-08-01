@@ -24,11 +24,13 @@ module "ecr" {
   scan_on_push         = var.scan_on_push
   tags                 = var.tags
 }
-
 module "notify_lambda" {
-  source             = "./modules/notify-lambda"
-  ses_sender_email   = var.ses_sender_email
-  ses_recipient_email= var.ses_recipient_email
-  aws_region         = var.aws_region
-  lambda_zip_file    = "function.zip"
+  source               = "./modules/notify-lambda"
+  ses_sender_email     = var.ses_sender_email
+  ses_recipient_email  = var.ses_recipient_email
+  aws_region           = var.aws_region
+  lambda_zip_file      = "function.zip"
+
+  
 }
+
