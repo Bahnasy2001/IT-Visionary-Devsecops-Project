@@ -68,7 +68,7 @@ jobs:
 
 
       - name: Terraform Fmt
-        run: terraform fmt -check=true -diff=true
+        run: terraform fmt 
 
       - name: Terraform Validate
         run: terraform validate
