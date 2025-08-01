@@ -87,17 +87,25 @@ jobs:
         with:
           python-version: 3.8
 
-      # 1) Scan كود Terraform باستخدام Checkov Action (static code scan)
       - name: Static Terraform Code Scan with Checkov Action
+        id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
           directory: ./terraform
           framework: terraform
+          output: json
+          output-file-path: ./terraform/checkov-report.json
+
+      - name: List files in terraform folder after scan
+        run: ls -lah ./terraform
+
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
-          path: checkov-report.json  
+          path: ./terraform/checkov-report.json
+
+
       #- name: Fail if Checkov failed
        # if: steps.checkov.outcome == 'failure'
         #run: exit 1
