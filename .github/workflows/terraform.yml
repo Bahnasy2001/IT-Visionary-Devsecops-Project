@@ -4,13 +4,12 @@ on:
   push:
     branches:
       - dev
-    
   pull_request:
     branches:
       - main
     paths:
       - terraform/**
-  workflow_dispatch: # Manual trigger for apply stepon:
+  workflow_dispatch:
     inputs:
       env:
         description: 'Select environment'
@@ -29,15 +28,11 @@ on:
           - apply
           - destroy    
 
-
-
-
 env:
   AWS_REGION: us-east-1
   AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-  
 
 jobs:
   terraform:
@@ -54,68 +49,124 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+
       - name: Set ENV_NAME variable
-        run: echo "ENV_NAME=${{ github.event.inputs.env || github.ref_name }}" >> $GITHUB_ENV
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "ENV_NAME=${{ github.event.inputs.env }}" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
 
       - name: Terraform Init
         run: terraform init -backend-config="bucket=${BUCKET_TF_STATE}"
 
       - name: Select or Create Workspace
         run: |
-          ENV_NAME="${{ github.event.inputs.env || github.ref_name }}"
           echo "Using workspace: $ENV_NAME"
           terraform workspace select "$ENV_NAME" || terraform workspace new "$ENV_NAME"
 
-
       - name: Terraform Fmt
-        run: terraform fmt 
+        run: terraform fmt
 
       - name: Terraform Validate
         run: terraform validate
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan --input=false --out=tfplan -var-file=${ENV_NAME}.tfvars
+        run: terraform plan --input=false --out=tfplan -var-file="$ENV_NAME.tfvars"
         continue-on-error: true
 
       - name: Fail if plan failed
         if: steps.plan.outcome == 'failure'
         run: exit 1
 
-      - name: Convert plan to JSON
-        run: terraform show -json tfplan > tfplan.json
-
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
       - name: Install Checkov
         run: pip install checkov
+    
+      - name: Run Checkov Scan (JSON)
+        run: checkov -d . --output json 
 
-      - name: Run Checkov Scan
-        id: checkov
-        run: checkov -f tfplan.json --output json --soft-fail-on HIGH,CRITICAL > checkov-report.json
+      - name: Show first lines of Checkov report
+        run: head -n 20 checkov-report.json
 
-      - name: Upload Checkov Report
+      - name: Upload Checkov JSON Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
-          path: checkov-report.json
+          path: ./terraform/checkov-report.json
+      - name: Install Checkov
+        run: pip install checkov
 
-      - name: Fail if Checkov failed
-        if: steps.checkov.outcome == 'failure'
-        run: exit 1
+      - name: Run Checkov HTML Report
+        run: checkov -d . --output json --output-file-path checkov-report.json
 
-      # Apply ONLY when triggered manually
-      - name: Terraform Apply or Destroy
-        if: github.event_name == 'workflow_dispatch'
+
+      - name: Upload Checkov HTML Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-html-report
+          path: ./terraform/checkov-report.html
+      - name: Show Checkov CLI summary
+        run: checkov -d . --output cli
+
+      - name: Terraform Apply
+        id: apply
+
         run: |
-          if [ "${{ github.event.inputs.action }}" == "destroy" ]; then
-            terraform destroy -var-file=${{ github.event.inputs.env }}.tfvars -auto-approve
-          else
-            terraform apply -var-file=${{ github.event.inputs.env }}.tfvars -auto-approve -input=false -parallelism=10 tfplan
-          fi
 
-      - name: Fail if apply/destroy failed
-        if: github.event_name == 'workflow_dispatch' && failure()
+          terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
+      
+      
+      - name: Trigger Success Event
+        if: ${{ success() && steps.apply.outcome == 'success' }}
+        
+        run: |
+          aws events put-events --entries '[{
+            "Source": "custom.terraform",
+            "DetailType": "Terraform Apply Success",
+            "Detail": "{}"
+          }]'
+
+      - name: Trigger Failure Event
+        if: ${{ failure() || steps.apply.outcome == 'failure' }}
+        
+        run: |
+          aws events put-events --entries '[{
+            "Source": "custom.terraform",
+            "DetailType": "Terraform Apply Failed",
+            "Detail": "{}"
+          }]'
+
+      - name: Fail if apply failed
+        if: failure()
         run: exit 1
 
       - name: Terraform Output
-        if: github.event_name == 'workflow_dispatch' && success()
+        if: success()
         run: terraform output -json > output.json
+
+
+
+
+      # # Apply or Destroy only on manual trigger
+      # - name: Terraform Apply or Destroy
+      #   if: github.event_name == 'workflow_dispatch'
+      #   run: |
+      #     if [ "${{ github.event.inputs.action }}" == "destroy" ]; then
+      #       terraform destroy -var-file="${{ github.event.inputs.env }}.tfvars" -auto-approve
+      #     else
+      #       terraform apply -var-file="${{ github.event.inputs.env }}.tfvars" -auto-approve -input=false -parallelism=10 tfplan
+      #     fi
+
+      # - name: Fail if apply/destroy failed
+      #   if: github.event_name == 'workflow_dispatch' && failure()
+      #   run: exit 1
+
+      # - name: Terraform Output
+      #   if: github.event_name == 'workflow_dispatch' && success()
+      #   run: terraform output -json > output.json

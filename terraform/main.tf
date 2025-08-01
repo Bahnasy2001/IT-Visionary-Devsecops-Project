@@ -51,11 +51,20 @@ module "ecr" {
   scan_on_push         = var.scan_on_push
   tags                 = var.tags
 }
-
 module "notify_lambda" {
-  source             = "./modules/notify-lambda"
-  ses_sender_email   = var.ses_sender_email
-  ses_recipient_email= var.ses_recipient_email
-  aws_region         = var.aws_region
-  lambda_zip_file    = "function.zip"
+  source               = "./modules/notify-lambda"
+  ses_sender_email     = var.ses_sender_email
+  ses_recipient_email  = var.ses_recipient_email
+  aws_region           = var.aws_region
+  lambda_zip_file      = "function.zip"
+
+  
+}
+
+resource "aws_instance" "test" {
+  ami           = "ami-0c02fb55956c7d316"  
+  instance_type = "t2.micro"
+  tags = {
+    Name = "test"
+  }
 }
