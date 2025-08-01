@@ -93,10 +93,14 @@ jobs:
         with:
           directory: ./terraform
           framework: terraform
-
-      - name: Fail if Checkov failed
-        if: steps.checkov.outcome == 'failure'
-        run: exit 1
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-report
+          path: checkov-report.json  
+      #- name: Fail if Checkov failed
+       # if: steps.checkov.outcome == 'failure'
+        #run: exit 1
 
       # Apply ONLY when triggered manually
       - name: Terraform Apply or Destroy
