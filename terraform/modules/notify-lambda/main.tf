@@ -115,3 +115,52 @@ resource "aws_lambda_function_event_invoke_config" "example" {
     } 
   }  
 }  
+resource "aws_cloudwatch_event_rule" "terraform_apply_success" {
+  name        = "terraform-apply-success"
+  description = "Trigger Lambda on Terraform Apply Success"
+  event_pattern = <<PATTERN
+{
+  "source": ["custom.terraform"],
+  "detail-type": ["Terraform Apply Success"]
+}
+PATTERN
+}
+
+resource "aws_cloudwatch_event_rule" "terraform_apply_failed" {
+  name        = "terraform-apply-failed"
+  description = "Trigger Lambda on Terraform Apply Failed"
+  event_pattern = <<PATTERN
+{
+  "source": ["custom.terraform"],
+  "detail-type": ["Terraform Apply Failed"]
+}
+PATTERN
+}
+
+resource "aws_cloudwatch_event_target" "notify_lambda_success" {
+  rule      = aws_cloudwatch_event_rule.terraform_apply_success.name
+  target_id = "NotifyLambdaSuccess"
+  arn       = aws_lambda_function.notify.arn
+}
+
+resource "aws_cloudwatch_event_target" "notify_lambda_failed" {
+  rule      = aws_cloudwatch_event_rule.terraform_apply_failed.name
+  target_id = "NotifyLambdaFailed"
+  arn       = aws_lambda_function.notify.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_success" {
+  statement_id  = "AllowExecutionFromCloudWatchSuccess"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.notify.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.terraform_apply_success.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_failed" {
+  statement_id  = "AllowExecutionFromCloudWatchFailed"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.notify.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.terraform_apply_failed.arn
+}
