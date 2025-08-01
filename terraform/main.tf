@@ -14,6 +14,33 @@ terraform {
     dynamodb_table = "terraform-locks"
   }
 }
+
+module "ec2_asg" {
+  source = "./modules/ec2-asg"
+
+  name_prefix        = var.name_prefix
+  ami_id             = var.ami_id
+  instance_type      = var.instance_type
+  desired_capacity   = var.desired_capacity
+  min_size           = var.min_size
+  max_size           = var.max_size
+  private_subnet_id  = var.private_subnet_id
+  security_group_id  = var.security_group_id
+  tags               = var.tags
+}
+
+module "elb" {
+  source             = "./modules/elb"
+  name_prefix        = var.name_prefix
+  vpc_id             = var.vpc_id
+  public_subnet_ids  = var.public_subnet_ids
+  security_group_id  = var.security_group_id
+  lb_logging_bucket  = var.lb_logging_bucket
+  target_type        = var.target_type
+  tags               = var.tags
+}
+
+
 module "ecr" {
   source = "./modules/ecr"
 
