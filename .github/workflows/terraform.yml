@@ -97,8 +97,7 @@ jobs:
 
       - name: Run Checkov Scan
         id: checkov
-        run: checkov -f tfplan.json --output json --soft-fail-on HIGH,CRITICAL > checkov-report.json
-
+        run: checkov -f tfplan.json --framework terraform_plan --output json --soft-fail-on HIGH,CRITICAL > checkov-report.json
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
         with:
