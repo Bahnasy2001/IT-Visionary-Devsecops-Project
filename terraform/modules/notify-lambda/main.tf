@@ -112,6 +112,6 @@ resource "aws_lambda_function_event_invoke_config" "example" {
     }
     on_success {
       destination = aws_sns_topic.terraform_notifications.arn    
-    # ممكن تضيف on_success برضه لو عايز
-  }
-}
+    } 
+  }  
+}  
