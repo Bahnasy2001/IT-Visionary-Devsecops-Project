@@ -50,10 +50,11 @@ resource "aws_lambda_function" "notify" {
   role             = aws_iam_role.lambda_role.arn
   handler          = "lambda_function.lambda_handler"
   runtime          = "python3.9"
+   timeout = 60
   tracing_config {
   mode = "Active"
   }
- 
+  
   source_code_hash = filebase64sha256(var.lambda_zip_file)
 
   environment {
@@ -101,4 +102,16 @@ resource "aws_sns_topic_subscription" "email_subscription" {
   topic_arn = aws_sns_topic.terraform_notifications.arn
   protocol  = "email"
   endpoint  = var.ses_recipient_email
+}
+resource "aws_lambda_function_event_invoke_config" "example" {
+  function_name = aws_lambda_function.notify.function_name
+
+  destination_config {
+    on_failure {
+      destination = aws_sns_topic.terraform_notifications.arn
+    }
+    on_success {
+      destination = aws_sns_topic.terraform_notifications.arn    
+    # ممكن تضيف on_success برضه لو عايز
+  }
 }
