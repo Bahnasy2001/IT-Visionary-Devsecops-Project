@@ -1,5 +1,5 @@
-# checkov:skip=CKV2_AWS_76 reason="WAF includes AWSManagedRulesLog4RuleSet for Log4j protection"
 resource "aws_lb" "this" {
+# checkov:skip=CKV2_AWS_76 reason="WAF includes AWSManagedRulesLog4RuleSet for Log4j protection"
   name               = "${var.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"
@@ -76,8 +76,8 @@ resource "aws_wafv2_web_acl_association" "this" {
   web_acl_arn  = aws_wafv2_web_acl.example.arn
 }
 
-# checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"
 resource "aws_wafv2_web_acl" "example" {
+# checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"
   name        = "my-acl"
   description = "WAF for ALB"
   scope       = "REGIONAL"

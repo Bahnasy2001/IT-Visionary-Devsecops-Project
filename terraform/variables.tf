@@ -74,13 +74,6 @@ variable "private_subnet_id" {
   type        = string
 }
 
-variable "security_group_id" {
-  description = "Security group for the EC2 instance"
-  type        = string
-}
-
-
-
 ######
 
 variable "vpc_id" {
