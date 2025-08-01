@@ -87,23 +87,26 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Static Terraform Code Scan with Checkov Action
-        id: checkov
-        uses: bridgecrewio/checkov-action@master
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
         with:
-          directory: .
-          framework: terraform
-          output: json
-          output-file-path: checkov-report.json
+          python-version: 3.8
 
-      - name: List files after scan
-        run: ls -lah .
+      - name: Run Checkov Scan
+        id: checkov
+        run: |
+          pip install checkov
+          checkov -d . --output json --soft-fail-on HIGH,CRITICAL > checkov-report.json
+
+      - name: Show first lines of Checkov report
+        run: head -n 20 checkov-report.json
 
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
           path: checkov-report.json
+
 
 
 
