@@ -115,6 +115,8 @@ jobs:
         run: checkov -d . --output cli
 
       - name: Terraform Apply
+        id: apply
+
         run: |
 
           terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
