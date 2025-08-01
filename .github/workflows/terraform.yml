@@ -119,6 +119,32 @@ jobs:
 
           terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
       
+      
+      - name: Trigger Success Event
+        if: ${{ success() && steps.apply.outcome == 'success' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+        run: |
+          aws events put-events --entries '[{
+            "Source": "custom.terraform",
+            "DetailType": "Terraform Apply Success",
+            "Detail": "{}"
+          }]'
+
+      - name: Trigger Failure Event
+        if: ${{ failure() || steps.apply.outcome == 'failure' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+        run: |
+          aws events put-events --entries '[{
+            "Source": "custom.terraform",
+            "DetailType": "Terraform Apply Failed",
+            "Detail": "{}"
+          }]'
 
       - name: Fail if apply failed
         if: failure()
