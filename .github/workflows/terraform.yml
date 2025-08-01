@@ -91,19 +91,20 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ./terraform
+          directory: .
           framework: terraform
           output: json
-          output-file-path: ./terraform/checkov-report.json
+          output-file-path: checkov-report.json
 
-      - name: List files in terraform folder after scan
-        run: ls -lah ./terraform
+      - name: List files after scan
+        run: ls -lah .
 
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
-          path: ./terraform/checkov-report.json
+          path: checkov-report.json
+
 
 
 
