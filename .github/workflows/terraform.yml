@@ -83,8 +83,24 @@ jobs:
         run: exit 1
         
       - name: Convert plan to JSON
-        run: terraform show -json tfplan > tfplan.json
-        
+        run: |
+          # Generate JSON and clean it
+          terraform show -json tfplan > tfplan_raw.json
+          
+          # Find the first line that starts with '{' and take everything from there
+          grep -n "^{" tfplan_raw.json | head -1 | cut -d: -f1 | xargs -I {} tail -n +{} tfplan_raw.json > tfplan.json
+          
+          # Clean up
+          rm tfplan_raw.json
+          
+          # Verify
+          if jq empty tfplan.json; then
+            echo "✅ Clean JSON generated"
+          else
+            echo "❌ JSON still invalid after cleaning"
+            head -10 tfplan.json
+            exit 1
+          fi
       - name: List files
         run: ls -lah
         
