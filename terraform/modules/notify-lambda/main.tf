@@ -58,3 +58,28 @@ resource "aws_lambda_function" "notify" {
     }
   }
 }
+resource "aws_cloudwatch_event_rule" "terraform_apply_rule" {
+  name        = "terraform-apply-complete"
+  description = "Trigger Lambda after Terraform apply"
+  event_pattern = <<PATTERN
+{
+  "source": ["custom.terraform"],
+  "detail-type": ["Terraform Apply"]
+}
+PATTERN
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.notify.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.terraform_apply_rule.arn
+}
+
+resource "aws_cloudwatch_event_target" "lambda_target" {
+  rule      = aws_cloudwatch_event_rule.terraform_apply_rule.name
+  target_id = "NotifyLambda"
+  arn       = aws_lambda_function.notify.arn
+}
+
