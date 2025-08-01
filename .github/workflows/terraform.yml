@@ -116,8 +116,8 @@ jobs:
 
       - name: Terraform Apply
         run: |
-          terraform destroy -var-file="dev.tfvars" -auto-approve -input=false || true
-#terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
+
+          terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
       
 
       - name: Fail if apply failed
