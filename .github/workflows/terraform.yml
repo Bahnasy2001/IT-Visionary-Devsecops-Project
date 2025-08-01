@@ -4,13 +4,12 @@ on:
   push:
     branches:
       - dev
-    
   pull_request:
     branches:
       - main
     paths:
       - terraform/**
-  workflow_dispatch: # Manual trigger for apply stepon:
+  workflow_dispatch:
     inputs:
       env:
         description: 'Select environment'
@@ -29,15 +28,11 @@ on:
           - apply
           - destroy    
 
-
-
-
 env:
   AWS_REGION: us-east-1
   AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
   BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
-  
 
 jobs:
   terraform:
@@ -54,6 +49,7 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+
       - name: Set ENV_NAME variable
         run: echo "ENV_NAME=${{ github.event.inputs.env || github.ref_name }}" >> $GITHUB_ENV
 
@@ -66,9 +62,8 @@ jobs:
           echo "Using workspace: $ENV_NAME"
           terraform workspace select "$ENV_NAME" || terraform workspace new "$ENV_NAME"
 
-
       - name: Terraform Fmt
-        run: terraform fmt 
+        run: terraform fmt
 
       - name: Terraform Validate
         run: terraform validate
@@ -87,35 +82,30 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-
       - name: Run Checkov Scan
         id: checkov
         run: |
           pip install checkov
-          checkov -d . --output json --soft-fail-on HIGH,CRITICAL > checkov-report.json
+          checkov -d . --output json --soft-fail-on HIGH,CRITICAL > ./checkov-report.json
+
+      - name: List files after Checkov scan
+        run: ls -lah
 
       - name: Show first lines of Checkov report
-        run: head -n 20 checkov-report.json
+        run: head -n 20 ./checkov-report.json
 
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
-          path: checkov-report.json
+          path: ./checkov-report.json
 
-
-
-
-
+      # Uncomment if you want the pipeline to fail on Checkov issues:
       #- name: Fail if Checkov failed
-       # if: steps.checkov.outcome == 'failure'
-        #run: exit 1
+      #  if: steps.checkov.outcome == 'failure'
+      #  run: exit 1
 
-      # Apply ONLY when triggered manually
+      # Apply or Destroy triggered manually
       - name: Terraform Apply or Destroy
         if: github.event_name == 'workflow_dispatch'
         run: |
