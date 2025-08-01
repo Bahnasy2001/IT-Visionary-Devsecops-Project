@@ -72,41 +72,26 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
-
+      
       - name: Terraform Plan
-        id: plan
-        run: terraform plan --input=false --out=tfplan -var-file=${ENV_NAME}.tfvars
-        continue-on-error: true
-
+        run: terraform plan --input=false --out=tfplan -var-file="${ENVIRONMENT}.tfvars"
       - name: Fail if plan failed
         if: steps.plan.outcome == 'failure'
         run: exit 1
-
       - name: Convert plan to JSON
         run: terraform show -json tfplan > tfplan.json
 
-      - name: List files
-        run: ls -lah
-
-      - name: Show tfplan.json content
-        run: head -n 20 tfplan.json
-  
-
       - name: Install Checkov
-        run: pip install checkov
+        run: pip install -U checkov
 
       - name: Run Checkov Scan
         id: checkov
         run: |
-          checkov -f tfplan.json \
+          checkov --file tfplan.json \
+            --repo-root-for-plan-enrichment ./terraform \
+            --deep-analysis \
             --output json \
             --soft-fail-on HIGH,CRITICAL > checkov-report.json
-
-      - name: Upload Checkov Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkov-report
-          path: checkov-report.json
 
       - name: Fail if Checkov failed
         if: steps.checkov.outcome == 'failure'
