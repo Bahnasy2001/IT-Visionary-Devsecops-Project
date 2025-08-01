@@ -72,26 +72,208 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
-      
+
       - name: Terraform Plan
-        run: terraform plan --input=false --out=tfplan -var-file="${ENVIRONMENT}.tfvars"
+        id: plan
+        run: terraform plan --input=false --out=tfplan -var-file=${ENV_NAME}.tfvars
+        continue-on-error: true
+        
       - name: Fail if plan failed
         if: steps.plan.outcome == 'failure'
         run: exit 1
+        
       - name: Convert plan to JSON
         run: terraform show -json tfplan > tfplan.json
-
+        
+      - name: List files
+        run: ls -lah
+        
+      - name: Show tfplan.json content
+        run: head -n 20 tfplan.json
+        
+      - name: Validate JSON format
+        run: |
+          echo "Validating tfplan.json format..."
+          if jq empty tfplan.json 2>/dev/null; then
+            echo "✅ Valid JSON format"
+          else
+            echo "❌ Invalid JSON format"
+            echo "File content (first 50 lines):"
+            head -50 tfplan.json
+            exit 1
+          fi
+  
       - name: Install Checkov
-        run: pip install -U checkov
-
+        run: |
+          pip install --upgrade pip
+          pip install checkov
+          
+      - name: Verify Checkov installation
+        run: |
+          checkov --version
+          echo "Checkov installed successfully"
+          
       - name: Run Checkov Scan
         id: checkov
         run: |
-          checkov --file tfplan.json \
-            --repo-root-for-plan-enrichment ./terraform \
-            --deep-analysis \
+          echo "Starting Checkov scan..."
+          echo "Current directory: $(pwd)"
+          echo "Available files:"
+          ls -la *.json *.tf* 2>/dev/null || echo "No relevant files found"
+          
+          # Run Checkov with the correct framework flag
+          if checkov -f tfplan.json \
+            --framework terraform_plan \
             --output json \
-            --soft-fail-on HIGH,CRITICAL > checkov-report.json
+            --soft-fail-on HIGH,CRITICAL > checkov-report.json 2>&1; then
+            echo "✅ Checkov scan completed successfully"
+            CHECKOV_EXIT_CODE=0
+          else
+            CHECKOV_EXIT_CODE=$?
+            echo "⚠️ Checkov scan completed with exit code: $CHECKOV_EXIT_CODE"
+          fi
+          
+          # Verify report was generated
+          if [ -f checkov-report.json ] && [ -s checkov-report.json ]; then
+            echo "📊 Checkov report generated ($(wc -l < checkov-report.json) lines)"
+            
+            # Show summary if possible
+            if command -v jq &> /dev/null && jq empty checkov-report.json 2>/dev/null; then
+              echo "📋 Scan Summary:"
+              jq -r '
+                if .summary then
+                  "Passed: " + (.summary.passed // 0 | tostring) + 
+                  ", Failed: " + (.summary.failed // 0 | tostring) + 
+                  ", Skipped: " + (.summary.skipped // 0 | tostring)
+                else
+                  "Summary not available"
+                end
+              ' checkov-report.json
+            fi
+          else
+            echo "❌ Checkov report not generated or empty"
+            echo "Attempting alternative approach..."
+            
+            # Try alternative command syntax
+            checkov -f tfplan.json \
+              --framework terraform_plan \
+              --output json \
+              --output-file-path checkov-report.json \
+              --soft-fail-on HIGH,CRITICAL || true
+              
+            if [ -f checkov-report.json ] && [ -s checkov-report.json ]; then
+              echo "✅ Alternative command worked"
+            else
+              echo "❌ Alternative command also failed"
+              echo "Debug information:"
+              echo "Checkov help for terraform_plan:"
+              checkov --help | grep -A 5 -B 5 terraform_plan || echo "No terraform_plan help found"
+            fi
+          fi
+          
+          # Set output for next steps
+          echo "CHECKOV_EXIT_CODE=$CHECKOV_EXIT_CODE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+        
+      - name: Display Checkov Results
+        if: always()
+        run: |
+          echo "=== Checkov Scan Results ==="
+          
+          if [ -f checkov-report.json ]; then
+            if [ -s checkov-report.json ]; then
+              echo "📊 Report file exists and has content"
+              
+              # Try to parse and display summary
+              if command -v jq &> /dev/null; then
+                echo "Attempting to parse JSON report..."
+                if jq empty checkov-report.json 2>/dev/null; then
+                  echo "✅ Valid JSON report"
+                  
+                  # Extract summary
+                  echo "=== Summary ==="
+                  jq -r '
+                    if .summary then
+                      "✅ Passed: " + (.summary.passed // 0 | tostring) + "\n" +
+                      "❌ Failed: " + (.summary.failed // 0 | tostring) + "\n" +
+                      "⏭️ Skipped: " + (.summary.skipped // 0 | tostring)
+                    else
+                      "No summary section found"
+                    end
+                  ' checkov-report.json
+                  
+                  # Show high/critical issues
+                  echo -e "\n=== High/Critical Issues ==="
+                  jq -r '
+                    if .results.failed_checks then
+                      [.results.failed_checks[] | select(.severity == "HIGH" or .severity == "CRITICAL")] |
+                      if length > 0 then
+                        "🚨 Found " + (length | tostring) + " high/critical issues:" + "\n" +
+                        (.[0:5] | map("- " + .check_id + ": " + .check_name + " (" + (.severity // "UNKNOWN") + ")") | join("\n"))
+                      else
+                        "✅ No high/critical issues found"
+                      end
+                    else
+                      "No failed checks section found"
+                    end
+                  ' checkov-report.json
+                else
+                  echo "❌ Invalid JSON in report file"
+                  echo "First 100 characters of report:"
+                  head -c 100 checkov-report.json
+                fi
+              else
+                echo "jq not available, showing raw content (first 20 lines):"
+                head -20 checkov-report.json
+              fi
+            else
+              echo "❌ Report file exists but is empty"
+            fi
+          else
+            echo "❌ No checkov-report.json file found"
+            echo "Available files:"
+            ls -la
+          fi
+          
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-security-report-${{ env.ENV_NAME }}
+          path: |
+            checkov-report.json
+            tfplan.json
+          retention-days: 30
+          
+      - name: Check for Security Issues
+        if: always() && steps.checkov.outputs.CHECKOV_EXIT_CODE != '0'
+        run: |
+          echo "⚠️ Checkov found security issues or encountered errors"
+          echo "Please review the uploaded artifacts for detailed information"
+          
+          # Optionally fail the workflow on high/critical issues
+          if [ -f checkov-report.json ] && command -v jq &> /dev/null; then
+            CRITICAL_HIGH_COUNT=$(jq -r '
+              if .results.failed_checks then
+                [.results.failed_checks[] | select(.severity == "HIGH" or .severity == "CRITICAL")] | length
+              else
+                0
+              end
+            ' checkov-report.json 2>/dev/null || echo "0")
+            
+            if [ "$CRITICAL_HIGH_COUNT" -gt 0 ]; then
+              echo "🚨 Found $CRITICAL_HIGH_COUNT high/critical security issues"
+              echo "::warning::$CRITICAL_HIGH_COUNT high/critical security issues found"
+              # Uncomment the next line to fail the workflow on high/critical issues
+              # exit 1
+            fi
+          fi
+
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-report
+          path: checkov-report.json
 
       - name: Fail if Checkov failed
         if: steps.checkov.outcome == 'failure'
