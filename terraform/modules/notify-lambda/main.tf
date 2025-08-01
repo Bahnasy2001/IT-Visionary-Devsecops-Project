@@ -30,13 +30,13 @@ resource "aws_iam_role_policy" "lambda_policy" {
     ]
   })
 }
-# checkov:skip=CKV_AWS_117: skipping for now
-# checkov:skip=CKV_AWS_272: skipping for now
-# checkov:skip=CKV_AWS_173: skipping for now
-
-# checkov:skip=CKV2_AWS_116: skipping for now
+#Checkov skip comments must be placed directly above the resource
 
 resource "aws_lambda_function" "notify" {
+# checkov:skip=CKV_AWS_117:Lambda doesn't need VPC for SES email notifications
+# checkov:skip=CKV_AWS_272:Code signing not required for internal automation
+# checkov:skip=CKV_AWS_173:Environment variables don't contain sensitive data
+# checkov:skip=CKV_AWS_116:DLQ not required for simple email notifications
   filename         = var.lambda_zip_file
   function_name    = "notify_on_state_change"
   role             = aws_iam_role.lambda_role.arn
