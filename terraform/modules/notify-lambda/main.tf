@@ -53,7 +53,7 @@ resource "aws_lambda_function" "notify" {
     variables = {
       SES_SENDER    = var.ses_sender_email
       SES_RECIPIENT = var.ses_recipient_email
-      AWS_REGION    = var.aws_region
+      
     }
   }
 }
