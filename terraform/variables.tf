@@ -79,16 +79,9 @@ variable "security_group_id" {
   type        = string
 }
 
-variable "tags" {
-  type        = map(string)
-  description = "Tags to apply to all resources"
-}
+
 
 ######
-variable "name_prefix" {
-  description = "Prefix for ALB naming"
-  type        = string
-}
 
 variable "vpc_id" {
   description = "VPC ID for ALB and TG"
@@ -111,10 +104,7 @@ variable "target_type" {
   default     = "instance"
 }
 
-variable "tags" {
-  type        = map(string)
-  description = "Tags to apply to all resources"
-}
+
 
 variable "lb_logging_bucket" {
   description = "S3 bucket for ALB access logs"
