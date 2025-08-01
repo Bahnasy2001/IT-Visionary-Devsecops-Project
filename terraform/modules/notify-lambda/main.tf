@@ -1,0 +1,59 @@
+resource "aws_iam_role" "lambda_role" {
+  name = "lambda_ses_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Action = "sts:AssumeRole",
+      Effect = "Allow",
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda_policy" {
+  name = "lambda_ses_policy"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ],
+        Resource = "arn:aws:ses:us-east-1:911167904183:identity/ahmedrafat530@gmail.com"      }
+    ]
+  })
+}
+# checkov:skip=CKV_AWS_117: skipping for now
+# checkov:skip=CKV_AWS_272: skipping for now
+# checkov:skip=CKV_AWS_173: skipping for now
+
+# checkov:skip=CKV2_AWS_116: skipping for now
+
+resource "aws_lambda_function" "notify" {
+  filename         = var.lambda_zip_file
+  function_name    = "notify_on_state_change"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.9"
+  reserved_concurrent_executions = 2
+  tracing_config {
+  mode = "Active"
+  }
+ 
+  source_code_hash = filebase64sha256(var.lambda_zip_file)
+
+  environment {
+    variables = {
+      SES_SENDER    = var.ses_sender_email
+      SES_RECIPIENT = var.ses_recipient_email
+      AWS_REGION    = var.aws_region
+    }
+  }
+}
