@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
-          path: ./checkov-report.json
+          path: checkov-report.json
 
       # Uncomment if you want the pipeline to fail on Checkov issues:
       #- name: Fail if Checkov failed
