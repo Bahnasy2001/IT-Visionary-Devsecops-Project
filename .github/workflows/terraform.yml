@@ -85,24 +85,21 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
-
-      - name: Run Checkov Scan
-        id: checkov
-        run: |
-          pip install checkov
-          checkov -d . --output json --soft-fail-on HIGH,CRITICAL > checkov-report.json
-
-      - name: List files after Checkov scan
-        run: ls -lah
+      - name: Run Checkov Scan (JSON)
+        run: checkov -d . --output json > checkov-report.json
 
       - name: Show first lines of Checkov report
         run: head -n 20 checkov-report.json
 
-      - name: Upload Checkov Report
+      - name: Upload Checkov JSON Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-report
           path: ./terraform/checkov-report.json
+
+      - name: Show Checkov CLI summary
+        run: checkov -d . --output cli
+
 
       # Apply or Destroy only on manual trigger
       - name: Terraform Apply or Destroy
