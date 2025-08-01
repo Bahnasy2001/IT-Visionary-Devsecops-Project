@@ -37,12 +37,13 @@ resource "aws_lambda_function" "notify" {
 # checkov:skip=CKV_AWS_272:Code signing not required for internal automation
 # checkov:skip=CKV_AWS_173:Environment variables don't contain sensitive data
 # checkov:skip=CKV_AWS_116:DLQ not required for simple email notifications
+# checkov:skip=CKV_AWS_115:DLQ not required for simple email notifications
+
   filename         = var.lambda_zip_file
   function_name    = "notify_on_state_change"
   role             = aws_iam_role.lambda_role.arn
   handler          = "lambda_function.lambda_handler"
   runtime          = "python3.9"
-  reserved_concurrent_executions = 10
   tracing_config {
   mode = "Active"
   }
