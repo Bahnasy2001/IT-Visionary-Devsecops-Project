@@ -106,6 +106,7 @@ jobs:
           path: ./terraform/checkov-report.json
 
 
+
       #- name: Fail if Checkov failed
        # if: steps.checkov.outcome == 'failure'
         #run: exit 1
