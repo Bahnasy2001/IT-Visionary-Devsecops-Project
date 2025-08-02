@@ -13,8 +13,7 @@ $(document).ready(() => {
         $.ajax({
             type: 'get',
             url: '/weather/' + city,
-            success: function (res){
-                result = JSON.parse(res)
+            success: function (result){
                 $('#result').show()
                 $('#weather_icon').attr("src","https://" + result.current.condition.icon)
                 $('#weather_text').html(result.current.condition.text)
