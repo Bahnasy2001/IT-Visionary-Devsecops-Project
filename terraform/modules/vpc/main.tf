@@ -102,7 +102,7 @@ resource "aws_route_table_association" "private" {
 # Security Group for Web Servers (Public)
 resource "aws_security_group" "web" {
   name_prefix = "${var.project_name}-web-${var.environment}-"
-    description = "Security group for web tier"
+  description = "Security group for web tier"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -110,8 +110,7 @@ resource "aws_security_group" "web" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-   cidr_blocks = ["0.0.0.0/0"]
-
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -129,14 +128,16 @@ resource "aws_security_group" "web" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-ingress {
+
+  ingress {
     description = "Allow port 3000"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] 
+    cidr_blocks = ["0.0.0.0/0"]
   }
-ingress {
+
+  ingress {
     description = "Allow port 8082"
     from_port   = 8082
     to_port     = 8082
@@ -173,26 +174,3 @@ ingress {
     Project     = var.project_name
   }
 }
-
-  tags = {
-    Name        = "${var.project_name}-app-sg-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "${var.project_name}-db-sg-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-
-} 
-
