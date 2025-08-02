@@ -20,7 +20,6 @@ tags = {
 }
 ses_sender_email    = "ahmedrafat530@gmail.com"
 ses_recipient_email = "ahmedrafat530@gmail.com"
-aws_region          = "us-east-1"
 ###
 
 name_prefix        = "itv-dev"
