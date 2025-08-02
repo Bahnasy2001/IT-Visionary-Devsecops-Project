@@ -19,7 +19,7 @@ ecr_repos = {
       Project     = "itvisonary"
     }
   }
-
+   
   weather = {
     image_tag_mutability = "MUTABLE"
     force_delete         = false
@@ -32,21 +32,10 @@ ecr_repos = {
   }
 }
 
-ses_sender_email    = "ahmedrafat530@gmail.com"
-ses_recipient_email = "ahmedrafat530@gmail.com"
-aws_region          = "us-east-1"
-
-name_prefix      = "itv-prod"
-ami_id           = "ami-08a6efd148b1f7504"
-instance_type    = "t2.micro"
-desired_capacity = 2
-min_size         = 1
-max_size         = 3
-target_type      = "instance"
-
 # Default Configuration 
+aws_region     = "us-east-1"
 project_name   = "my-project"
-environment    = "prod"
+environment    = "dev"
 vpc_cidr_block = "10.0.0.0/16"
 
 # Subnet configurations
@@ -55,7 +44,18 @@ private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
 
 availability_zones = ["us-east-1a", "us-east-1b"]
 
+ses_sender_email    = "ahmedrafat530@gmail.com"
+ses_recipient_email = "ahmedrafat530@gmail.com"
+
+name_prefix      = "itv-dev"
+ami_id           = "ami-0d1d34fdacafd9e54"
+instance_type    = "t2.micro"
+desired_capacity = 2
+min_size         = 1
+max_size         = 3
+target_type      = "instance"
+
 tags = {
-  Environment = "prod"
+  Environment = "dev"
   Project     = "itvisionary"
 }
