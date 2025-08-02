@@ -35,17 +35,22 @@ variable "max_size" {
   default = 2
 }
 
-variable "private_subnet_id" {
-  description = "Private subnet where EC2 will be deployed"
-  type        = string
-}
-
-variable "security_group_id" {
-  description = "Security group for the EC2 instance"
-  type        = string
-}
 
 variable "tags" {
   type        = map(string)
   description = "Tags to apply to all resources"
+}
+
+variable "target_group_arn" {
+  description = "ARN of the target group to attach to the ASG"
+  type        = string
+}
+variable "private_subnet_ids" {
+  description = "ID of the private subnet to launch instances in"
+  type        = list(string)
+}
+
+variable "security_group_ids" {
+  description = "List of security group IDs to attach to the ASG"
+  type        = list(string)
 }

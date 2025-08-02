@@ -5,8 +5,8 @@ resource "aws_launch_template" "this" {
 
   network_interfaces {
     associate_public_ip_address = false
-    subnet_id                   = var.private_subnet_id
-    security_groups             = [var.security_group_id]
+    subnet_id                   = var.private_subnet_ids[0]
+    security_groups             = var.security_group_ids
   }
   metadata_options {
     http_tokens   = "required" # Enforces IMDSv2
@@ -33,7 +33,7 @@ resource "aws_autoscaling_group" "this" {
   desired_capacity    = var.desired_capacity
   max_size            = var.max_size
   min_size            = var.min_size
-  vpc_zone_identifier = [var.private_subnet_id]
+  vpc_zone_identifier = var.private_subnet_ids
   launch_template {
     id      = aws_launch_template.this.id
     version = "$Latest"

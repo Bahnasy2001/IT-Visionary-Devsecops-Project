@@ -24,18 +24,18 @@ module "ec2_asg" {
   desired_capacity   = var.desired_capacity
   min_size           = var.min_size
   max_size           = var.max_size
-  private_subnet_id  = var.private_subnet_id
-  security_group_id  = var.security_group_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.vpc.security_group_ids.app]
+  target_group_arn   = module.elb.target_group_arn
   tags               = var.tags
 }
 
 module "elb" {
   source             = "./modules/elb"
   name_prefix        = var.name_prefix
-  vpc_id             = var.vpc_id
-  public_subnet_ids  = var.public_subnet_ids
-  security_group_id  = var.security_group_id
-  lb_logging_bucket  = var.lb_logging_bucket
+  vpc_id             = module.vpc.vpc_id
+  public_subnet_ids  = module.vpc.public_subnet_ids
+  security_group_ids = [module.vpc.security_group_ids.alb]
   target_type        = var.target_type
   tags               = var.tags
 }
@@ -54,13 +54,13 @@ module "ecr" {
 }
 
 module "notify_lambda" {
-  source               = "./modules/notify-lambda"
-  ses_sender_email     = var.ses_sender_email
-  ses_recipient_email  = var.ses_recipient_email
-  aws_region           = var.aws_region
-  lambda_zip_file      = "function.zip"
+  source              = "./modules/notify-lambda"
+  ses_sender_email    = var.ses_sender_email
+  ses_recipient_email = var.ses_recipient_email
+  aws_region          = var.aws_region
+  lambda_zip_file     = "function.zip"
 
-  
+
 }
 #network 
 provider "aws" {
@@ -70,14 +70,14 @@ provider "aws" {
 # VPC Module
 module "vpc" {
   source = "./modules/vpc"
-  
-  aws_region          = var.aws_region
-  project_name        = var.project_name
-  environment         = var.environment
-  vpc_cidr_block      = var.vpc_cidr_block
-  public_subnet_cidrs = var.public_subnet_cidrs
+
+  aws_region           = var.aws_region
+  project_name         = var.project_name
+  environment          = var.environment
+  vpc_cidr_block       = var.vpc_cidr_block
+  public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
-  availability_zones  = var.availability_zones
+  availability_zones   = var.availability_zones
 }
 
 # Outputs
@@ -104,4 +104,4 @@ output "private_subnet_ids" {
 output "security_group_ids" {
   description = "Map of security group IDs"
   value       = module.vpc.security_group_ids
-} 
+}

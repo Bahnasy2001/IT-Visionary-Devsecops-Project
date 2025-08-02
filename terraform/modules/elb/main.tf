@@ -3,16 +3,12 @@ resource "aws_lb" "this" {
   name               = "${var.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [var.security_group_id]
+  security_groups    = var.security_group_ids
   subnets            = var.public_subnet_ids
   drop_invalid_header_fields = true
   enable_deletion_protection = true
 
-  access_logs {
-  bucket  = var.lb_logging_bucket
-  enabled = true
-  prefix  = "${var.name_prefix}/"
-}
+  
 
   tags = merge(
     {

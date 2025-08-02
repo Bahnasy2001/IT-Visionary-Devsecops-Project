@@ -1,5 +1,5 @@
 variable "ecr_repos" {
-  description = "Map of ECR repos and settings"
+  description = "Map of ECR repositories with their configs"
   type = map(object({
     image_tag_mutability = string
     force_delete         = bool
@@ -57,27 +57,9 @@ variable "max_size" {
   default = 2
 }
 
-variable "private_subnet_id" {
-  description = "Private subnet where EC2 will be deployed"
-  type        = string
-}
 
 ######
 
-variable "vpc_id" {
-  description = "VPC ID for ALB and TG"
-  type        = string
-}
-
-variable "public_subnet_ids" {
-  description = "List of public subnet IDs for ALB"
-  type        = list(string)
-}
-
-variable "security_group_id" {
-  description = "Security group to associate with the ALB"
-  type        = string
-}
 
 variable "target_type" {
   description = "Type of target (instance or ip)"
@@ -85,19 +67,7 @@ variable "target_type" {
   default     = "instance"
 }
 
-
-
-variable "lb_logging_bucket" {
-  description = "S3 bucket for ALB access logs"
-  type        = string
-}
-
 #network 
-variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
-}
 
 variable "project_name" {
   description = "Name of the project"
@@ -133,4 +103,10 @@ variable "availability_zones" {
   description = "Availability zones"
   type        = list(string)
   default     = ["us-east-1a", "us-east-1b"]
-} 
+}
+
+variable "tags" {
+  description = "Tags to apply"
+  type        = map(string)
+}
+
