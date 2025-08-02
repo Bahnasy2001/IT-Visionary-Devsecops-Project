@@ -85,46 +85,67 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
+
       - name: Install Checkov
         run: pip install checkov
-    
+
+      - name: Verify working directory and files
+        run: |
+          echo "Current working directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "Terraform files:"
+          find . -name "*.tf" -type f
+
       - name: Run Checkov Scan (JSON)
-        run: checkov -d . --output json --output-file-path checkov-report.json
+        run: |
+          checkov -d . --output json --output-file-path ./checkov-report.json
+          echo "Checkov JSON scan completed"
+          ls -la checkov-report.json || echo "JSON report not found"
 
       - name: Show first lines of Checkov report
-        run: head -n 20 checkov-report.json
+        run: |
+          if [ -f "./checkov-report.json" ]; then
+            echo "Checkov report found, showing first 20 lines:"
+            head -n 20 ./checkov-report.json
+          else
+            echo "Checkov report file not found"
+            echo "Current directory contents:"
+            ls -la
+            echo "Trying to find any checkov files:"
+            find . -name "*checkov*" -type f
+          fi
 
       - name: Upload Checkov JSON Report
         uses: actions/upload-artifact@v4
         with:
-          name: checkov-report
+          name: checkov-json-report
           path: ./terraform/checkov-report.json
-      - name: Install Checkov
-        run: pip install checkov
+        continue-on-error: true
 
       - name: Run Checkov HTML Report
-        run: checkov -d . --output json --output-file-path checkov-report.json
-
+        run: |
+          checkov -d . --output html --output-file-path ./checkov-report.html
+          echo "Checkov HTML scan completed"
+          ls -la checkov-report.html || echo "HTML report not found"
 
       - name: Upload Checkov HTML Report
         uses: actions/upload-artifact@v4
         with:
           name: checkov-html-report
           path: ./terraform/checkov-report.html
+        continue-on-error: true
+
       - name: Show Checkov CLI summary
         run: checkov -d . --output cli
 
       - name: Terraform Apply
         id: apply
-
         run: |
-
           terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
-      
       
       - name: Trigger Success Event
         if: ${{ success() && steps.apply.outcome == 'success' }}
-        
         run: |
           aws events put-events --entries '[{
             "Source": "custom.terraform",
@@ -134,7 +155,6 @@ jobs:
 
       - name: Trigger Failure Event
         if: ${{ failure() || steps.apply.outcome == 'failure' }}
-        
         run: |
           aws events put-events --entries '[{
             "Source": "custom.terraform",
@@ -149,24 +169,3 @@ jobs:
       - name: Terraform Output
         if: success()
         run: terraform output -json > output.json
-
-
-
-
-      # # Apply or Destroy only on manual trigger
-      # - name: Terraform Apply or Destroy
-      #   if: github.event_name == 'workflow_dispatch'
-      #   run: |
-      #     if [ "${{ github.event.inputs.action }}" == "destroy" ]; then
-      #       terraform destroy -var-file="${{ github.event.inputs.env }}.tfvars" -auto-approve
-      #     else
-      #       terraform apply -var-file="${{ github.event.inputs.env }}.tfvars" -auto-approve -input=false -parallelism=10 tfplan
-      #     fi
-
-      # - name: Fail if apply/destroy failed
-      #   if: github.event_name == 'workflow_dispatch' && failure()
-      #   run: exit 1
-
-      # - name: Terraform Output
-      #   if: github.event_name == 'workflow_dispatch' && success()
-      #   run: terraform output -json > output.json
