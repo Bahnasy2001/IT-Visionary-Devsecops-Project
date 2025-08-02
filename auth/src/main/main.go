@@ -41,9 +41,17 @@ func main() {
 	if os.Getenv("DB_NAME") != "" {
 		dbName = os.Getenv("DB_NAME")
 	}
-	db := authdb.Connect(dbUser, dbPassword, dbHost)
-	// authdb.CreateDB(db, dbName)
+	// db := authdb.Connect(dbUser, dbPassword, dbHost)
+	// // authdb.CreateDB(db, dbName)
+	// authdb.CreateTables(db, dbName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", dbUser, dbPassword, dbHost, dbName)
+	db, err := authdb.ConnectWithRetry(dsn, 10)
+	if err != nil {
+	fmt.Println("Failed to connect to DB:", err)
+	return
+	}
 	authdb.CreateTables(db, dbName)
+
 	router := gin.Default()
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowOrigins = []string{"*"}

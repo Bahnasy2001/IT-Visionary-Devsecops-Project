@@ -24,3 +24,5 @@ terraform.rc
 .vscode/
 *.swp
 .DS_Store
+
+.env

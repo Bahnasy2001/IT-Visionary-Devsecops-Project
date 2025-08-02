@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
+	"time"
 )
 
 type User struct {
@@ -74,4 +76,23 @@ func CreateUser(db *sql.DB, u User, dbName string) (bool, error) {
 			return true, nil
 		}
 	}
+}
+
+func ConnectWithRetry(dsn string, maxRetries int) (*sql.DB, error) {
+	var db *sql.DB
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		db, err = sql.Open("mysql", dsn)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+				return db, nil
+			}
+		}
+		log.Printf("Retrying DB connection... (%d/%d): %v", i+1, maxRetries, err)
+		time.Sleep(3 * time.Second)
+	}
+
+	return nil, fmt.Errorf("failed to connect to DB after %d attempts: %w", maxRetries, err)
 }
