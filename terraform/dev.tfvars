@@ -1,12 +1,36 @@
-name                 = "itvisionary-ecr-dev"
-image_tag_mutability = "MUTABLE"
-force_delete         = false
-encryption_type      = "AES256"
-scan_on_push         = true
-tags = {
-  Environment = "dev"
-  Project     = "itvisionary"
+ecr_repos = {
+  ui = {
+    image_tag_mutability = "MUTABLE"
+    force_delete         = false
+    encryption_type      = "AES256"
+    scan_on_push         = true
+    tags = {
+      Environment = "dev"
+      Project     = "itvisonary"
+    }
+  }
+  auth = {
+    image_tag_mutability = "MUTABLE"
+    force_delete         = false
+    encryption_type      = "AES256"
+    scan_on_push         = true
+    tags = {
+      Environment = "dev"
+      Project     = "itvisonary"
+    }
+  }
+  weather = {
+    image_tag_mutability = "MUTABLE"
+    force_delete         = false
+    encryption_type      = "AES256"
+    scan_on_push         = true
+    tags = {
+      Environment = "dev"
+      Project     = "itvosionary"
+    }
+  }
 }
+
 ses_sender_email    = "ahmedrafat530@gmail.com"
 ses_recipient_email = "ahmedrafat530@gmail.com"
 aws_region          = "us-east-1"
@@ -19,3 +43,5 @@ desired_capacity   = 2
 min_size           = 1
 max_size           = 3
 target_type         = "instance"
+
+

@@ -1,12 +1,37 @@
-name                 = "itvisionary-ecr-prod"
-image_tag_mutability = "IMMUTABLE"
-force_delete         = false
-encryption_type      = "AES256"
-scan_on_push         = true
-tags = {
-  Environment = "prod"
-  Project     = "itvisonary"
+ecr_repos = {
+  ui = {
+    image_tag_mutability = "MUTABLE"
+    force_delete         = false
+    encryption_type      = "AES256"
+    scan_on_push         = true
+    tags = {
+      Environment = "prod"
+      Project     = "itvisonary"
+    }
+  }
+  auth = {
+    image_tag_mutability = "MUTABLE"
+    force_delete         = false
+    encryption_type      = "AES256"
+    scan_on_push         = true
+    tags = {
+      Environment = "prod"
+      Project     = "itvisonary"
+    }
+  }
+   
+  weather = {
+    image_tag_mutability = "MUTABLE"
+    force_delete         = false
+    encryption_type      = "AES256"
+    scan_on_push         = true
+    tags = {
+      Environment = "prod"
+      Project     = "itvisonary"
+    }
+  }
 }
+
 ses_sender_email    = "ahmedrafat530@gmail.com"
 ses_recipient_email = "ahmedrafat530@gmail.com"
 aws_region          = "us-east-1"

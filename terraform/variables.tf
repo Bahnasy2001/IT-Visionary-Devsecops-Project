@@ -1,26 +1,14 @@
-variable "name" {
-  type = string
+variable "ecr_repos" {
+  description = "Map of ECR repos and settings"
+  type = map(object({
+    image_tag_mutability = string
+    force_delete         = bool
+    encryption_type      = string
+    scan_on_push         = bool
+    tags                 = map(string)
+  }))
 }
 
-variable "image_tag_mutability" {
-  type = string
-}
-
-variable "force_delete" {
-  type = bool
-}
-
-variable "encryption_type" {
-  type = string
-}
-
-variable "scan_on_push" {
-  type = bool
-}
-
-variable "tags" {
-  type = map(string)
-}
 variable "ses_recipient_email" {
   description = "Email address of the SES recipient"
   type        = string

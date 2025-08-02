@@ -42,15 +42,17 @@ module "elb" {
 
 
 module "ecr" {
-  source = "./modules/ecr"
+  for_each = var.ecr_repos
 
-  name                 = var.name
-  image_tag_mutability = var.image_tag_mutability
-  force_delete         = var.force_delete
-  encryption_type      = var.encryption_type
-  scan_on_push         = var.scan_on_push
-  tags                 = var.tags
+  source               = "./modules/ecr"
+  name                 = each.key
+  image_tag_mutability = each.value.image_tag_mutability
+  force_delete         = each.value.force_delete
+  encryption_type      = each.value.encryption_type
+  scan_on_push         = each.value.scan_on_push
+  tags                 = each.value.tags
 }
+
 module "notify_lambda" {
   source               = "./modules/notify-lambda"
   ses_sender_email     = var.ses_sender_email
