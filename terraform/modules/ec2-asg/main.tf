@@ -39,10 +39,7 @@ resource "aws_autoscaling_group" "this" {
     version = "$Latest"
   }
 
-  target_group_arns = [
-    aws_lb_target_group.this.arn
-  ]
-
+  target_group_arns = var.target_group_arns
   dynamic "tag" {
     for_each = var.tags
     content {

@@ -41,10 +41,7 @@ variable "tags" {
   description = "Tags to apply to all resources"
 }
 
-variable "target_group_arn" {
-  description = "ARN of the target group to attach to the ASG"
-  type        = string
-}
+
 variable "private_subnet_ids" {
   description = "ID of the private subnet to launch instances in"
   type        = list(string)
@@ -53,4 +50,7 @@ variable "private_subnet_ids" {
 variable "security_group_ids" {
   description = "List of security group IDs to attach to the ASG"
   type        = list(string)
+}
+variable "target_group_arns" {
+  type = list(string)
 }

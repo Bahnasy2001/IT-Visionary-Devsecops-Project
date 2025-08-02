@@ -30,8 +30,9 @@ module "ec2_asg" {
   max_size           = var.max_size
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_ids = [module.vpc.security_group_ids.app]
-  target_group_arn   = module.elb.target_group_arn
+  target_group_arns = [module.elb.lb_target_group_arn]
   tags               = var.tags
+  
 }
 
 module "elb" {
