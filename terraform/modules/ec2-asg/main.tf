@@ -27,17 +27,21 @@ resource "aws_launch_template" "this" {
     create_before_destroy = true
   }
 }
-
 resource "aws_autoscaling_group" "this" {
   name                = "${var.name_prefix}-asg"
   desired_capacity    = var.desired_capacity
   max_size            = var.max_size
   min_size            = var.min_size
   vpc_zone_identifier = var.private_subnet_ids
+
   launch_template {
     id      = aws_launch_template.this.id
     version = "$Latest"
   }
+
+  target_group_arns = [
+    aws_lb_target_group.this.arn
+  ]
 
   dynamic "tag" {
     for_each = var.tags
@@ -51,7 +55,6 @@ resource "aws_autoscaling_group" "this" {
   health_check_type = "EC2"
   force_delete      = true
 }
-
 
 
 # resource "aws_network_interface_attachment" "this" {
