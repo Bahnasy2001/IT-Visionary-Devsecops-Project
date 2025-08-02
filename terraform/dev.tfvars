@@ -29,3 +29,4 @@ desired_capacity   = 2
 min_size           = 1
 max_size           = 3
 target_type         = "instance"
+
