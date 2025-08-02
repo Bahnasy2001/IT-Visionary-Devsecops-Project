@@ -73,9 +73,7 @@ resource "aws_s3_bucket_policy" "alb_logs" {
         Principal = {
           Service = "logdelivery.elasticloadbalancing.amazonaws.com"
         }
-        Action = [
-          "s3:PutObject"
-        ]
+        Action = "s3:PutObject"
         Resource = "${aws_s3_bucket.alb_logs.arn}/*"
         Condition = {
           StringEquals = {
@@ -95,6 +93,7 @@ resource "aws_s3_bucket_policy" "alb_logs" {
     ]
   })
 }
+
 
 
 resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
