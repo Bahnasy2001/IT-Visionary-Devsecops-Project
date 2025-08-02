@@ -522,3 +522,89 @@ resource "aws_security_group" "db" {
     Project     = var.project_name
   }
 }
+# Security Group for VPC Endpoints (SSM)
+resource "aws_security_group" "vpc_endpoint_sg" {
+  description = "Allow EC2 instances in app tier to access SSM VPC endpoints"
+  name_prefix = "${var.project_name}-vpc-endpoint-${var.environment}-"
+  description = "Allow EC2 instances in app tier to access SSM VPC endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "HTTPS from App SG"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app.id]
+  }
+
+  egress {
+    description = "Allow outbound HTTPS to SSM endpoints"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.project_name}-vpc-endpoint-sg-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+#############################################
+# VPC Endpoints for SSM
+#############################################
+
+# SSM endpoint
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.ssm"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = aws_subnet.private[*].id
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.project_name}-ssm-endpoint-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# EC2 messages endpoint
+resource "aws_vpc_endpoint" "ec2messages" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.ec2messages"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = aws_subnet.private[*].id
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.project_name}-ec2messages-endpoint-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# SSM messages endpoint
+resource "aws_vpc_endpoint" "ssmmessages" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.ssmmessages"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = aws_subnet.private[*].id
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.project_name}-ssmmessages-endpoint-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# Get current region (needed for dynamic service names)
