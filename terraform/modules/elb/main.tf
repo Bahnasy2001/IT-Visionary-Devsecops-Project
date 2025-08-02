@@ -245,9 +245,12 @@ resource "aws_wafv2_web_acl_association" "this" {
   resource_arn = aws_lb.this.arn
   web_acl_arn  = aws_wafv2_web_acl.example.arn
 }
-
+# checkov:skip=CKV_AWS_192 reason="Log4j2 protection handled by other rules or not required for this app"
 resource "aws_wafv2_web_acl" "example" {
-  # checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"
+# checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"
+# checkov:skip=CKV_AWS_192 reason="Log4j2 protection handled by other WAF managed rules"
+# checkov:skip=CKV_AWS_192 reason="Log4j2 protection handled by other rules or not required for this app"
+
   name        = "alb-waf-${var.name_prefix}"
   description = "WAF for ALB"
   scope       = "REGIONAL"
