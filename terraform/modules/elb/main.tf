@@ -8,7 +8,11 @@ resource "aws_lb" "this" {
   drop_invalid_header_fields = true
   enable_deletion_protection = true
 
-  
+  access_logs {
+    bucket  = aws_s3_bucket.alb_logs.bucket
+    prefix  = "alb-logs"
+    enabled = true
+  }
 
   tags = merge(
     {
@@ -16,6 +20,125 @@ resource "aws_lb" "this" {
     },
     var.tags
   )
+}
+
+# S3 bucket for ALB access logs
+resource "aws_s3_bucket" "alb_logs" {
+  # checkov:skip=CKV2_AWS_62:reason="Event notifications not required for ALB logs bucket"
+  # checkov:skip=CKV_AWS_144:reason="Cross-region replication not required for ALB logs in dev environment"
+  bucket = "${var.name_prefix}-alb-logs-${random_string.bucket_suffix.result}"
+
+  tags = var.tags
+}
+
+resource "aws_s3_bucket_versioning" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.s3_key.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+
+  rule {
+    id     = "log_lifecycle"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
+
+    expiration {
+      days = 365
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+resource "aws_s3_bucket_logging" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+
+  target_bucket = aws_s3_bucket.alb_logs.id
+  target_prefix = "log/"
+}
+
+# KMS key for S3 encryption
+resource "aws_kms_key" "s3_key" {
+  description             = "KMS key for S3 bucket encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow S3 to use the key"
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_kms_alias" "s3_key_alias" {
+  name          = "alias/s3-${var.name_prefix}-logs"
+  target_key_id = aws_kms_key.s3_key.key_id
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "random_string" "bucket_suffix" {
+  length  = 8
+  special = false
+  upper   = false
 }
 
 resource "aws_lb_target_group" "this" {
