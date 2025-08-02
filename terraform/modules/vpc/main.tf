@@ -174,77 +174,12 @@ ingress {
   }
 }
 
-# Security Group for Application Servers (Private)
-resource "aws_security_group" "app" {
-  name_prefix = "${var.project_name}-app-${var.environment}-"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "HTTP from Web SG"
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
-  }
-
-  ingress {
-    description     = "HTTPS from Web SG"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
-  }
-
-  ingress {
-    description     = "SSH from Web SG"
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = {
     Name        = "${var.project_name}-app-sg-${var.environment}"
     Environment = var.environment
     Project     = var.project_name
   }
 }
-
-# Security Group for Database Servers (Private)
-resource "aws_security_group" "db" {
-  name_prefix = "${var.project_name}-db-${var.environment}-"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "MySQL from App SG"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  ingress {
-    description     = "PostgreSQL from App SG"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  ingress {
-    description     = "MongoDB from App SG"
-    from_port       = 27017
-    to_port         = 27017
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
 
   egress {
     from_port   = 0
@@ -260,3 +195,4 @@ resource "aws_security_group" "db" {
   }
 
 } 
+
