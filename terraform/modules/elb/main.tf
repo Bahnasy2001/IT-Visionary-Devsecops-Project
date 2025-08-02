@@ -29,9 +29,24 @@ resource "aws_s3_bucket" "alb_logs" {
   # checkov:skip=CKV2_AWS_62:reason="Event notifications not required for ALB logs bucket"
   # checkov:skip=CKV_AWS_144:reason="Cross-region replication not required for ALB logs in dev environment"
   bucket = "${var.name_prefix}-alb-logs-${random_string.bucket_suffix.result}"
-
-  tags = var.tags
+  tags   = var.tags
 }
+
+resource "aws_s3_bucket_ownership_controls" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+  # checkov:skip=CKV2_AWS_65 reason="ACLs required for ALB access logs delivery"
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_acl" "alb_logs" {
+  depends_on = [aws_s3_bucket_ownership_controls.alb_logs]
+  bucket     = aws_s3_bucket.alb_logs.id
+  acl        = "private"
+}
+
 
 resource "aws_s3_bucket_versioning" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
@@ -60,7 +75,7 @@ resource "aws_s3_bucket_public_access_block" "alb_logs" {
   restrict_public_buckets = true
 }
 
-## S3 bucket policy for ALB access
+# S3 bucket policy for ALB access
 resource "aws_s3_bucket_policy" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
 
@@ -68,24 +83,33 @@ resource "aws_s3_bucket_policy" "alb_logs" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "AllowALBLogDelivery"
         Effect = "Allow"
         Principal = {
-          Service = "delivery.logs.amazonaws.com"
+          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
         }
-        Action   = "s3:PutObject"
+        Action = [
+          "s3:PutObject"
+        ]
         Resource = "${aws_s3_bucket.alb_logs.arn}/*"
         Condition = {
           StringEquals = {
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          }
-          ArnLike = {
-            "aws:SourceArn" = "arn:aws:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:loadbalancer/app/${var.name_prefix}-alb/*"
+            "s3:x-amz-acl" = "bucket-owner-full-control"
           }
         }
+      },
+      {
+        Sid    = "AllowALBLogDeliveryGetBucketAcl"
+        Effect = "Allow"
+        Principal = {
+          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+        }
+        Action = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.alb_logs.arn
       }
     ]
   })
-}   
+}
 
 
 resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
