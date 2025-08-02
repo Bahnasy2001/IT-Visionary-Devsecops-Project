@@ -80,31 +80,29 @@ resource "aws_s3_bucket_policy" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "AllowALBLogDelivery"
+        Sid    = "AWSALBLoggingPermissions"
         Effect = "Allow"
         Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+          Service = "delivery.logs.amazonaws.com"
         }
-        Action = [
-          "s3:PutObject"
-        ]
+        Action   = "s3:PutObject"
         Resource = "${aws_s3_bucket.alb_logs.arn}/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
+            "AWS:SourceAccount" = data.aws_caller_identity.current.account_id
           }
         }
       },
       {
-        Sid    = "AllowALBLogDeliveryGetBucketAcl"
+        Sid    = "AWSALBLoggingGetBucketAcl"
         Effect = "Allow"
         Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+          Service = "delivery.logs.amazonaws.com"
         }
-        Action = "s3:GetBucketAcl"
+        Action   = "s3:GetBucketAcl"
         Resource = aws_s3_bucket.alb_logs.arn
       }
     ]
