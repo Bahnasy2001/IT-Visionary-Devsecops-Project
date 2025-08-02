@@ -58,12 +58,43 @@ resource "aws_s3_bucket_public_access_block" "alb_logs" {
   restrict_public_buckets = true
 }
 
+# S3 bucket policy for ALB access
+resource "aws_s3_bucket_policy" "alb_logs" {
+  bucket = aws_s3_bucket.alb_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowALBLogDelivery"
+        Effect = "Allow"
+        Principal = {
+          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+        }
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "${aws_s3_bucket.alb_logs.arn}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
 
   rule {
     id     = "log_lifecycle"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
 
     transition {
       days          = 30
@@ -161,32 +192,45 @@ resource "aws_lb_target_group" "this" {
   tags = var.tags
 }
 
-resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.this.arn
-  port              = 443
-  protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
-  certificate_arn   = aws_acm_certificate.cert.arn
+# Comment out HTTPS listener temporarily to avoid ACM certificate timeout
+# resource "aws_lb_listener" "https" {
+#   load_balancer_arn = aws_lb.this.arn
+#   port              = 443
+#   protocol          = "HTTPS"
+#   ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
+#   certificate_arn   = aws_acm_certificate.cert.arn
+# 
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.this.arn
+#   }
+# }
 
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.this.arn
-  }
-}
+# Optional redirect from HTTP to HTTPS - commented out temporarily
+# resource "aws_lb_listener" "http_redirect" {
+#   load_balancer_arn = aws_lb.this.arn
+#   port              = 80
+#   protocol          = "HTTP"
+# 
+#   default_action {
+#     type = "redirect"
+#     redirect {
+#       port        = "443"
+#       protocol    = "HTTPS"
+#       status_code = "HTTP_301"
+#     }
+#   }
+# }
 
-# Optional redirect from HTTP to HTTPS
-resource "aws_lb_listener" "http_redirect" {
+# HTTP listener for now
+resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type = "redirect"
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.this.arn
   }
 }
 
@@ -196,67 +240,44 @@ resource "aws_wafv2_web_acl_association" "this" {
 }
 
 resource "aws_wafv2_web_acl" "example" {
-# checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"
-  name        = "my-acl"
+  # checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"
+  name        = "alb-waf-${var.name_prefix}"
   description = "WAF for ALB"
   scope       = "REGIONAL"
+  
   default_action {
     allow {}
   }
 
   rule {
-    name     = "AWSManagedRulesKnownBadInputsRuleSet"
+    name     = "AWSManagedRulesCommonRuleSet"
     priority = 1
 
     override_action {
       none {}
     }
-    
 
     statement {
       managed_rule_group_statement {
-        name        = "AWSManagedRulesKnownBadInputsRuleSet"
+        name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
       }
     }
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "log4j-block"
+      metric_name                = "AWSManagedRulesCommonRuleSetMetric"
       sampled_requests_enabled   = true
     }
   }
 
-  rule {
-  name     = "AWSManagedRulesLog4RuleSet"
-  priority = 2
-
-  override_action {
-    none {}
-  }
-
-  statement {
-    managed_rule_group_statement {
-      name        = "AWSManagedRulesLog4RuleSet"
-      vendor_name = "AWS"
-    }
-  }
-
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "log4j-protection"
-    sampled_requests_enabled   = true
-  }
-}
-
-
-  visibility_config {
-    cloudwatch_metrics_enabled = true
-    metric_name                = "waf"
+    metric_name                = "alb-waf-${var.name_prefix}"
     sampled_requests_enabled   = true
   }
 
-  tags=var.tags
+  tags = var.tags
 }
 
 # resource "aws_wafv2_logging_configuration" "waf_logs" {
@@ -271,13 +292,14 @@ resource "aws_wafv2_web_acl" "example" {
 # }
 
 
-resource "aws_acm_certificate" "cert" {
-  domain_name       = "example.com"
-  validation_method = "DNS"
-
-  tags = var.tags
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
+# Comment out ACM certificate temporarily to avoid timeout
+# resource "aws_acm_certificate" "cert" {
+#   domain_name       = "example.com"
+#   validation_method = "DNS"
+# 
+#   tags = var.tags
+# 
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
