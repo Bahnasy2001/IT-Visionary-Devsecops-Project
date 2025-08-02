@@ -68,32 +68,24 @@ resource "aws_s3_bucket_policy" "alb_logs" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AllowALBLogDelivery"
         Effect = "Allow"
         Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+          Service = "delivery.logs.amazonaws.com"
         }
-        Action = "s3:PutObject"
+        Action   = "s3:PutObject"
         Resource = "${aws_s3_bucket.alb_logs.arn}/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:elasticloadbalancing:${var.aws_region}:${data.aws_caller_identity.current.account_id}:loadbalancer/app/${var.name_prefix}-alb/*"
           }
         }
-      },
-      {
-        Sid    = "AllowALBLogDeliveryGetBucketAcl"
-        Effect = "Allow"
-        Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
-        }
-        Action = "s3:GetBucketAcl"
-        Resource = aws_s3_bucket.alb_logs.arn
       }
     ]
   })
-}
-
+}   
 
 
 resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
