@@ -60,4 +60,46 @@ module "notify_lambda" {
 
   
 }
+#network 
+provider "aws" {
+  region = var.aws_region
+}
 
+# VPC Module
+module "vpc" {
+  source = "./modules/vpc"
+  
+  aws_region          = var.aws_region
+  project_name        = var.project_name
+  environment         = var.environment
+  vpc_cidr_block      = var.vpc_cidr_block
+  public_subnet_cidrs = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+  availability_zones  = var.availability_zones
+}
+
+# Outputs
+output "vpc_id" {
+  description = "The ID of the VPC"
+  value       = module.vpc.vpc_id
+}
+
+output "vpc_cidr_block" {
+  description = "The CIDR block of the VPC"
+  value       = module.vpc.vpc_cidr_block
+}
+
+output "public_subnet_ids" {
+  description = "List of public subnet IDs"
+  value       = module.vpc.public_subnet_ids
+}
+
+output "private_subnet_ids" {
+  description = "List of private subnet IDs"
+  value       = module.vpc.private_subnet_ids
+}
+
+output "security_group_ids" {
+  description = "Map of security group IDs"
+  value       = module.vpc.security_group_ids
+} 
