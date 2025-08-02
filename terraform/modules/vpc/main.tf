@@ -524,7 +524,6 @@ resource "aws_security_group" "db" {
 }
 # Security Group for VPC Endpoints (SSM)
 resource "aws_security_group" "vpc_endpoint_sg" {
-  description = "Allow EC2 instances in app tier to access SSM VPC endpoints"
   name_prefix = "${var.project_name}-vpc-endpoint-${var.environment}-"
   description = "Allow EC2 instances in app tier to access SSM VPC endpoints"
   vpc_id      = aws_vpc.main.id
