@@ -25,7 +25,6 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-###
 variable "name_prefix" {
   description = "Prefix for resource names"
   type        = string
@@ -57,17 +56,11 @@ variable "max_size" {
   default = 2
 }
 
-
-######
-
-
 variable "target_type" {
   description = "Type of target (instance or ip)"
   type        = string
   default     = "instance"
 }
-
-#network 
 
 variable "project_name" {
   description = "Name of the project"

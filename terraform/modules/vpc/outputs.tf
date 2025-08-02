@@ -38,7 +38,6 @@ output "security_group_ids" {
   value = {
     alb = aws_security_group.alb_sg.id
     web = aws_security_group.web.id
-    app = aws_security_group.app.id
-    db  = aws_security_group.db.id
   }
+
 } 

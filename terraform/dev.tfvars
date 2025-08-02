@@ -45,7 +45,6 @@ availability_zones = ["us-east-1a", "us-east-1b"]
 
 ses_sender_email    = "ahmedrafat530@gmail.com"
 ses_recipient_email = "ahmedrafat530@gmail.com"
-###
 
 name_prefix      = "itv-dev"
 ami_id           = "ami-08a6efd148b1f7504"
@@ -54,7 +53,6 @@ desired_capacity = 2
 min_size         = 1
 max_size         = 3
 target_type      = "instance"
-
 
 tags = {
   Environment = "dev"
