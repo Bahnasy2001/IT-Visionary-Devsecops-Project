@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI-Pipeline
 
 on:
   push:
@@ -13,22 +13,32 @@ env:
   ECR_URI_AUTH: ${{ secrets.ECR_URI_AUTH }}
   ECR_URI_WEATHER: ${{ secrets.ECR_URI_WEATHER }}
   ECR_URI_UI: ${{ secrets.ECR_URI_UI }}
+  SONAR_HOST_URL: https://sonarcloud.io
+
 
 jobs:
-  build-and-push:
-    name: Build & Push Docker Images
+  build-and-analyze:
+    name: Build, Push & Analyze Code
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
@@ -36,17 +46,33 @@ jobs:
       - name: Set short commit SHA
         run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Build and Push Auth Image
+      - name: Build & Push Auth Image
         run: |
           docker build -t $ECR_URI_AUTH:${TAG} ./auth
           docker push $ECR_URI_AUTH:${TAG}
 
-      - name: Build and Push Weather Image
+      - name: Build & Push Weather Image
         run: |
           docker build -t $ECR_URI_WEATHER:${TAG} ./weather
           docker push $ECR_URI_WEATHER:${TAG}
 
-      - name: Build and Push UI Image
+      - name: Build & Push UI Image
         run: |
           docker build -t $ECR_URI_UI:${TAG} ./UI
           docker push $ECR_URI_UI:${TAG}
+
+      - name: SonarCloud Analysis
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: .
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Snyk Scan
+        uses: snyk/actions/node@0.4.0
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test

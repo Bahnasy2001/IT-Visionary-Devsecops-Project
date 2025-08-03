@@ -1,0 +1,79 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: 
+      - dev
+  # workflow_run:
+  #   workflows: ['CI-Pipeline']
+  #   types:
+  #     - completed
+
+env:
+  AWS_REGION: us-east-1
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+jobs:
+  deploy:
+    name: Deploy to All EC2 Instances via SSM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get list of EC2 instances with tags
+        id: get-ec2s
+        run: |
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Environment,Values=dev" "Name=tag:Project,Values=itvisionary" "Name=instance-state-name,Values=running" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "No running instances found with specified tags."
+            exit 1
+          fi
+
+          echo INSTANCE_IDS=$(echo "$INSTANCE_IDS" | xargs) >> $GITHUB_ENV
+          echo "Found EC2 instances: $INSTANCE_IDS"
+
+      - name: Run Docker Compose on all instances
+        id: deploy
+        run: |
+          echo "Running deployment via SSM on instances: $INSTANCE_IDS"
+
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy via Docker Compose" \
+            --instance-ids $INSTANCE_IDS \
+            --parameters 'commands=[
+              "mkdir -p /home/ec2-user/app",
+              "cd /home/ec2-user/app",
+              "rm -rf *",
+              "git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git .",
+              "cd /IT-Visionary-Devsecops-Project",
+              "docker compose up -d"
+            ]' \
+            --region $AWS_REGION \
+            --output text
+
+      - name: Send Slack notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            STATUS_MSG="✅ *CD Deployment Succeeded* on instances: $INSTANCE_IDS"
+          else
+            STATUS_MSG="❌ *CD Deployment Failed* on instances: $INSTANCE_IDS"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$STATUS_MSG\"}" \
+            $SLACK_WEBHOOK_URL
