@@ -2,6 +2,8 @@ resource "aws_launch_template" "this" {
   name_prefix   = "${var.name_prefix}-lt-"
   image_id      = var.ami_id
   instance_type = var.instance_type
+  key_name                    = "blogkey"
+
 
   network_interfaces {
     associate_public_ip_address = false

@@ -393,20 +393,21 @@ resource "aws_security_group" "app" {
 # Security Groups for Bastion Host
 #############################################
 
+#############################################
 # Security Group for Bastion Host
+#############################################
+
 resource "aws_security_group" "bastion_sg" {
-  # checkov:skip=CKV_AWS_260:reason="Bastion host needs SSH access from internet for administrative purposes"
-  # checkov:skip=CKV_AWS_24:reason="Bastion host requires SSH access from internet - restrict via allowed_ssh_cidr_blocks variable"
   name_prefix = "${var.project_name}-bastion-${var.environment}-"
   description = "Security group for bastion host"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "SSH from internet (restrict to your IP)"
+    description = "SSH from internet"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = var.allowed_ssh_cidr_blocks # Define this in variables
+    cidr_blocks = var.allowed_ssh_cidr_blocks
   }
 
   egress {
@@ -418,7 +419,6 @@ resource "aws_security_group" "bastion_sg" {
   }
 
   egress {
-    description = "HTTPS for updates and package downloads"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -426,7 +426,6 @@ resource "aws_security_group" "bastion_sg" {
   }
 
   egress {
-    description = "HTTP for updates and package downloads"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -440,10 +439,6 @@ resource "aws_security_group" "bastion_sg" {
   }
 }
 
-# Update the app security group to allow SSH from bastion
-# Note: Add these Checkov skips to your app security group if it allows HTTP/SSH from 0.0.0.0/0:
-# checkov:skip=CKV_AWS_260:reason="ALB/web tier requires HTTP access from internet"  
-# checkov:skip=CKV_AWS_24:reason="SSH access restricted to bastion host via security group rules"
 resource "aws_security_group_rule" "app_ssh_from_bastion" {
   type                     = "ingress"
   from_port                = 22
@@ -458,7 +453,6 @@ resource "aws_security_group_rule" "app_ssh_from_bastion" {
 # Bastion Host EC2 Instance
 #############################################
 
-# Get latest Amazon Linux 2023 AMI
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -474,17 +468,10 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
-# Bastion host instance
 resource "aws_instance" "bastion" {
-  # checkov:skip=CKV_AWS_79:reason="Bastion host needs public subnet for internet access"
-  # checkov:skip=CKV_AWS_126:reason="Detailed monitoring not required for bastion host"
-  # checkov:skip=CKV_AWS_135:reason="EBS optimization not critical for bastion host"
-  # checkov:skip=CKV_AWS_88:reason="Bastion host requires public IP for internet access as jump server"
-  # checkov:skip=CKV2_AWS_41:reason="IAM role not required for this bastion host - using SSH key authentication only"
-  
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.bastion_instance_type
-  key_name                    = "blogkey"                       # استخدم المفتاح الموجود خارج Terraform
+  key_name                    = "blogkey"
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
   associate_public_ip_address = true
@@ -494,78 +481,56 @@ resource "aws_instance" "bastion" {
     volume_size           = 35
     delete_on_termination = true
     encrypted             = true
-
-    tags = {
-      Name        = "${var.project_name}-bastion-root-${var.environment}"
-      Environment = var.environment
-      Project     = var.project_name
-    }
   }
 
   user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
-
-    # Configure SSH settings
-    echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
-    echo "ClientAliveCountMax 3" >> /etc/ssh/sshd_config
-    systemctl restart sshd
+    mkdir -p /home/ec2-user/.ssh
+    chmod 700 /home/ec2-user/.ssh
   EOF
   )
-
-  metadata_options {
-    http_endpoint               = "enabled"
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 1
-    instance_metadata_tags      = "enabled"
-  }
 
   tags = {
     Name        = "${var.project_name}-bastion-${var.environment}"
     Environment = var.environment
     Project     = var.project_name
-    Type        = "bastion"
+  }
+
+  provisioner "file" {
+    source      = "~/Downloads/blogkey.pem"
+    destination = "/home/ec2-user/.ssh/blogkey.pem"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("~/Downloads/blogkey.pem")
+      host        = self.public_ip
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod 600 /home/ec2-user/.ssh/blogkey.pem"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file("/absolute/path/to/blogkey.pem")
+      host        = self.public_ip
+    }
   }
 }
 
-# Elastic IP for bastion host
 resource "aws_eip" "bastion" {
   instance = aws_instance.bastion.id
   domain   = "vpc"
-
-  tags = {
-    Name        = "${var.project_name}-bastion-eip-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-# Display SSH connection info after deployment
-resource "null_resource" "display_connection_info" {
-  depends_on = [aws_eip.bastion]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=================================================="
-      echo "Bastion Host Deployment Complete!"
-      echo "=================================================="
-      echo "Public IP: ${aws_eip.bastion.public_ip}"
-      echo "Private IP: ${aws_instance.bastion.private_ip}"
-      echo ""
-      echo "SSH Command:"
-      echo "ssh -i /path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}"
-      echo ""
-      echo "Private Key File: /path/to/blogkey.pem"
-      echo "=================================================="
-    EOT
-  }
 }
 
 #############################################
-# Additional Variables Needed
+# Variables
 #############################################
-
-# Add these variables to your variables.tf file:
 
 variable "bastion_instance_type" {
   description = "Instance type for bastion host"
@@ -576,44 +541,30 @@ variable "bastion_instance_type" {
 variable "allowed_ssh_cidr_blocks" {
   description = "CIDR blocks allowed to SSH to bastion host"
   type        = list(string)
-  default     = ["0.0.0.0/0"] # SECURITY: Change this to your specific IP range (e.g., ["1.2.3.4/32"])
+  default     = ["0.0.0.0/0"]
 }
 
 #############################################
-# Outputs for Bastion Access
+# Outputs
 #############################################
 
 output "bastion_public_ip" {
-  description = "Public IP address of the bastion host"
-  value       = aws_eip.bastion.public_ip
-}
-
-output "bastion_private_ip" {
-  description = "Private IP address of the bastion host"
-  value       = aws_instance.bastion.private_ip
+  value = aws_eip.bastion.public_ip
 }
 
 output "ssh_command_to_bastion" {
-  description = "SSH command to connect to bastion host"
-  value       = "ssh -i /path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}"
+  value = "ssh -i /absolute/path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}"
 }
 
-output "private_key_filename" {
-  description = "Local filename of the private key"
-  value       = "/path/to/blogkey.pem"
+output "blogkey_inside_bastion" {
+  value = "/home/ec2-user/.ssh/blogkey.pem"
 }
 
-output "bastion_key_name" {
-  description = "Name of the AWS key pair for bastion and private instances"
-  value       = "blogkey"
-}
-
-# Connection instructions output
 output "connection_instructions" {
-  description = "Instructions for connecting to the bastion host"
   value = <<-EOT
-    To connect to your bastion host:
-    1. SSH to bastion: ssh -i /path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}
-    2. From bastion to private instances: ssh -i ~/.ssh/id_rsa ec2-user@<private-instance-ip>
+    SSH to bastion:
+    ssh -i /absolute/path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}
+    Then from bastion:
+    ssh -i ~/.ssh/blogkey.pem ec2-user@<private-instance-ip>
   EOT
 }
