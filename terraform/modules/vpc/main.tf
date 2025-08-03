@@ -322,73 +322,33 @@ resource "aws_security_group" "alb_sg" {
 
 # Security Group for Application Servers (Private) - FIXED FOR SSM
 resource "aws_security_group" "app" {
-  # checkov:skip=CKV2_AWS_5:reason="App security group will be attached to application tier resources"
-  # checkov:skip=CKV_AWS_24 reason="Allowing SSH from anywhere for dev/test environment"
-  # checkov:skip=CKV_AWS_260 reason="Allowing HTTP from anywhere is intentional for public web access"
   name_prefix = "${var.project_name}-app-${var.environment}-"
   description = "Security group for application tier"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "HTTP from Web SG"
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
+    description = "HTTP from inside VPC"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr_block]   # السماح من داخل الـ VPC
   }
 
   ingress {
-    description     = "HTTPS from Web SG"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-  }
-
-  ingress {
-    description     = "SSH from Web SG"
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-  }
-
-  # FIXED: Added HTTPS outbound for SSM connectivity
-  egress {
-    description = "HTTPS for SSM and AWS services"
+    description = "HTTPS from inside VPC"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr_block]
   }
 
-  egress {
-    description = "Allow outbound traffic to database tier"
-    from_port   = 3306
-    to_port     = 3306
+  ingress {
+    description = "SSH from inside VPC"
+    from_port   = 22
+    to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    cidr_blocks = [var.vpc_cidr_block]
   }
-
-  egress {
-    description = "Allow outbound traffic to database tier PostgreSQL"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    description = "Allow outbound traffic to database tier MongoDB"
-    from_port   = 27017
-    to_port     = 27017
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  tags = {
-    Name        = "${var.project_name}-app-sg-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
 #############################################
 # Security Group for Bastion Host
 #############################################
