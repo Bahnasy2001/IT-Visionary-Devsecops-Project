@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
 
-          echo "INSTANCE_IDS=$INSTANCE_IDS" >> $GITHUB_ENV
+          echo INSTANCE_IDS=$(echo "$INSTANCE_IDS" | xargs) >> $GITHUB_ENV
           echo "Found EC2 instances: $INSTANCE_IDS"
 
       - name: Run Docker Compose on all instances
