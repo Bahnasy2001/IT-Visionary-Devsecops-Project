@@ -27,7 +27,7 @@ jobs:
       - name: Parse Private IPs
         id: parse_ips
         run: |
-          IPS=$(jq -r '.private_instance_ips.value[]' terraform_outputs/terraform_outputs.json)
+          IPS=$(jq -r '.asg_instance_private_ips.value[]' terraform_outputs/terraform_outputs.json)
           echo "PRIVATE_IPS=$IPS" >> $GITHUB_ENV
 
       - name: Set up SSH Key for Bastion
