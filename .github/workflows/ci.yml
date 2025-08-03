@@ -21,45 +21,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      # Scan Node.js (UI)
       - name: Snyk Scan for UI
-        uses: snyk/actions/node@0.4.0
-        continue-on-error: true
+        run: snyk test
         working-directory: ./UI
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
 
-      # Scan Go (auth)
       - name: Snyk Scan for auth
-        uses: snyk/actions/golang@0.4.0
-        continue-on-error: true
+        run: snyk test
         working-directory: ./auth
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
 
-      # Scan Go (main)
       - name: Snyk Scan for main
-        uses: snyk/actions/golang@0.4.0
-        continue-on-error: true
+        run: snyk test
         working-directory: ./main
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-
-      # Scan Python (weather)
-      - name: Snyk Scan for weather
-        uses: snyk/actions/python@0.4.0
         continue-on-error: true
-        working-directory: ./weather
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
+
+      - name: Snyk Scan for weather
+        run: snyk test
+        working-directory: ./weather
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
 
   build-and-analyze:
     name: Build, Push & Analyze Code
