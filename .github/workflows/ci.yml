@@ -15,9 +15,8 @@ env:
   ECR_URI_UI: ${{ secrets.ECR_URI_UI }}
   SONAR_HOST_URL: https://sonarcloud.io
 
-
 jobs:
-   snyk-scan:
+  snyk-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
@@ -61,6 +60,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
+
   build-and-analyze:
     name: Build, Push & Analyze Code
     runs-on: ubuntu-latest
@@ -75,6 +75,7 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
+        working-directory: ./UI
         run: npm install
 
       - name: Configure AWS Credentials
@@ -112,11 +113,3 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      - name: Snyk Scan
-        uses: snyk/actions/node@0.4.0
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
