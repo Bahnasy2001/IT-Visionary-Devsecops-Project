@@ -17,6 +17,50 @@ env:
 
 
 jobs:
+   snyk-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      # Scan Node.js (UI)
+      - name: Snyk Scan for UI
+        uses: snyk/actions/node@0.4.0
+        continue-on-error: true
+        working-directory: ./UI
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+
+      # Scan Go (auth)
+      - name: Snyk Scan for auth
+        uses: snyk/actions/golang@0.4.0
+        continue-on-error: true
+        working-directory: ./auth
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+
+      # Scan Go (main)
+      - name: Snyk Scan for main
+        uses: snyk/actions/golang@0.4.0
+        continue-on-error: true
+        working-directory: ./main
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+
+      # Scan Python (weather)
+      - name: Snyk Scan for weather
+        uses: snyk/actions/python@0.4.0
+        continue-on-error: true
+        working-directory: ./weather
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
   build-and-analyze:
     name: Build, Push & Analyze Code
     runs-on: ubuntu-latest
