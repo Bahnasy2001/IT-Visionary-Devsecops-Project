@@ -70,22 +70,30 @@ jobs:
         run: |
           wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
           unzip sonar-scanner-cli-4.8.0.2856-linux.zip
-          
       - name: Run sonar-scanner
         env:
           SONAR_HOST_URL: 'http://13.221.216.62:9000'
           SONAR_LOGIN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          # Explicitly use Java 17
-          export PATH="$JAVA_HOME/bin:$PATH"
-          echo "Using Java: $(which java)"
+          # Remove any existing Java from PATH and add Java 17 first
+          export PATH="$JAVA_HOME/bin:$(echo $PATH | sed 's|[^:]*java[^:]*:||g')"
+          
+          # Verify Java version
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "Java executable: $(which java)"
           java -version
           
+          # Modify the sonar-scanner script to use our Java
+          sed -i "1a export JAVA_HOME=$JAVA_HOME" ./sonar-scanner-4.8.0.2856-linux/bin/sonar-scanner
+          sed -i "2a export PATH=\$JAVA_HOME/bin:\$PATH" ./sonar-scanner-4.8.0.2856-linux/bin/sonar-scanner
+          
+          # Run SonarScanner
           ./sonar-scanner-4.8.0.2856-linux/bin/sonar-scanner \
             -Dsonar.projectKey=itvisionary-project \
             -Dsonar.sources=. \
             -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_LOGIN
+            -Dsonar.login=$SONAR_LOGIN    
+      
   build-and-analyze:
     name: Build, Push & Analyze Code
     runs-on: ubuntu-latest
