@@ -322,33 +322,109 @@ resource "aws_security_group" "alb_sg" {
 
 # Security Group for Application Servers (Private) - FIXED FOR SSM
 resource "aws_security_group" "app" {
+  # checkov:skip=CKV2_AWS_5:reason="App security group will be attached to application tier resources"
+  # checkov:skip=CKV_AWS_24 reason="Allowing SSH from anywhere for dev/test environment"
+  # checkov:skip=CKV_AWS_260 reason="Allowing HTTP from anywhere is intentional for public web access"
   name_prefix = "${var.project_name}-app-${var.environment}-"
   description = "Security group for application tier"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP from inside VPC"
+    description = "Allow HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr_block]   # السماح من داخل الـ VPC
+    cidr_blocks = ["10.0.0.0/16"] # الأفضل نخليها من subnet ALB أو من SG ALB
   }
 
   ingress {
-    description = "HTTPS from inside VPC"
+    description = "Allow HTTPS"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr_block]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   ingress {
-    description = "SSH from inside VPC"
+    description = "Allow SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr_block]
+    cidr_blocks = ["10.0.0.0/16"]
   }
+
+  ingress {
+    description = "Allow app port 3000"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
+    description = "Allow app port 8082"
+    from_port   = 8082
+    to_port     = 8082
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
+    description = "Allow app port 5000"
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
+    description = "Allow MySQL"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+
+  # FIXED: Added HTTPS outbound for SSM connectivity
+  egress {
+    description = "HTTPS for SSM and AWS services"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow outbound traffic to database tier"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  egress {
+    description = "Allow outbound traffic to database tier PostgreSQL"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  egress {
+    description = "Allow outbound traffic to database tier MongoDB"
+    from_port   = 27017
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  tags = {
+    Name        = "${var.project_name}-app-sg-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
 #############################################
 # Security Group for Bastion Host
 #############################################
@@ -499,6 +575,17 @@ variable "bastion_private_key_path" {
 #############################################
 # Outputs
 #############################################
+data "aws_instances" "asg_instances" {
+  filter {
+    name   = "tag:Project"
+    values = ["itvisionary"]
+  }
+
+  filter {
+    name   = "tag:Environment"
+    values = ["dev"]
+  }
+}
 
 output "bastion_public_ip" {
   value = aws_eip.bastion.public_ip

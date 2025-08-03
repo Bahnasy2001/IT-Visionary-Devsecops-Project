@@ -86,6 +86,17 @@ module "vpc" {
 
   bastion_private_key_path = var.bastion_private_key_path
 }
+data "aws_instances" "asg_instances" {
+  filter {
+    name   = "tag:Project"
+    values = ["itvisionary"]
+  }
+
+  filter {
+    name   = "tag:Environment"
+    values = ["dev"]
+  }
+}
 
 
 # Outputs
@@ -109,7 +120,11 @@ output "private_subnet_ids" {
   value       = module.vpc.private_subnet_ids
 }
 
-output "security_group_ids" {
-  description = "Map of security group IDs"
-  value       = module.vpc.security_group_ids
+output "asg_instance_private_ips" {
+  description = "Private IPs of EC2s in the ASG (with Project=itvisionary, Environment=dev)"
+  value       = data.aws_instances.asg_instances.private_ips
+}
+
+output "asg_name" {
+  value = module.ec2_asg.asg_name
 }

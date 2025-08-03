@@ -196,20 +196,23 @@ resource "random_string" "bucket_suffix" {
 
 resource "aws_lb_target_group" "this" {
 # checkov:skip=CKV_AWS_378 reason="Target group intentionally uses HTTP; TLS termination at ALB"
-  name     = "${var.name_prefix}-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
+  name     = "${var.name_prefix}-tg1"
+  port        = 8082
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
   target_type = var.target_type
+    lifecycle {
+    create_before_destroy = true
+  }
 
   health_check {
     path                = "/"
     protocol            = "HTTP"
-    matcher             = "200"
-    interval            = 30
-    timeout             = 5
+    port                = "8082"
     healthy_threshold   = 2
     unhealthy_threshold = 2
+    timeout             = 5
+    interval            = 30
   }
 
   tags = var.tags
@@ -258,6 +261,7 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.this.arn
   }
 }
+
 
 resource "aws_wafv2_web_acl_association" "this" {
 # checkov:skip=CKV2_AWS_31 reason="WAF Logging is enabled via aws_wafv2_logging_configuration"

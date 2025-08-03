@@ -52,7 +52,18 @@ resource "aws_autoscaling_group" "this" {
       propagate_at_launch = true
     }
   }
+  # 👇 tags ثابتة عشان تقدر تعمل filter عليها
+  tag {
+    key                 = "Project"
+    value               = "itvisionary"
+    propagate_at_launch = true
+  }
 
+  tag {
+    key                 = "Environment"
+    value               = "dev"
+    propagate_at_launch = true
+  }
   health_check_type = "EC2"
   force_delete      = true
 }
@@ -88,4 +99,19 @@ resource "aws_iam_role_policy_attachment" "ssm_attach" {
 resource "aws_iam_instance_profile" "ec2_ssm_profile" {
   name = "ec2-ssm-instance-profile"
   role = aws_iam_role.ec2_ssm_role.name
+}
+
+data "aws_instances" "asg_instances" {
+  filter {
+    name   = "tag:Environment"
+    values = ["dev"]
+  }
+
+  filter {
+    name   = "tag:Project"
+    values = ["itvisionary"]
+  }
+
+ 
+  depends_on = [aws_autoscaling_group.this]
 }
