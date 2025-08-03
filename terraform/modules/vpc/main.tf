@@ -498,13 +498,13 @@ resource "aws_instance" "bastion" {
   }
 
   provisioner "file" {
-    source      = "home/ahmed/Downloads/blogkey.pem"
+    source      = "/home/ahmed/Downloads/blogkey.pem"
     destination = "/home/ec2-user/.ssh/blogkey.pem"
 
     connection {
       type        = "ssh"
       user        = "ec2-user"
-      private_key = file("home/ahmed/Downloads/blogkey.pem")
+      private_key = file(var.bastion_private_key_path)
       host        = self.public_ip
     }
   }
@@ -517,7 +517,7 @@ resource "aws_instance" "bastion" {
     connection {
       type        = "ssh"
       user        = "ec2-user"
-      private_key = file("/absolute/path/to/blogkey.pem")
+      private_key = file("/home/ahmed/Downloads/blogkey.pem")
       host        = self.public_ip
     }
   }
@@ -567,4 +567,9 @@ output "connection_instructions" {
     Then from bastion:
     ssh -i ~/.ssh/blogkey.pem ec2-user@<private-instance-ip>
   EOT
+}
+
+variable "bastion_private_key_path" {
+  description = "Path to private key file"
+  type        = string
 }

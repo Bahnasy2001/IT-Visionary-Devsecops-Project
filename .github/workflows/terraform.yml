@@ -60,7 +60,11 @@ jobs:
 
       - name: Terraform Init
         run: terraform init -backend-config="bucket=${BUCKET_TF_STATE}"
-
+      - name: Create blogkey.pem from secret
+        run: |
+          echo "${{ secrets.BLOGKEY_PEM }}" > blogkey.pem
+          chmod 600 blogkey.pem
+          
       - name: Select or Create Workspace
         run: |
           echo "Using workspace: $ENV_NAME"
