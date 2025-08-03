@@ -58,3 +58,5 @@ tags = {
   Environment = "dev"
   Project     = "itvisionary"
 }
+
+bastion_private_key_path = "/home/ahmed/Downloads/blogkey.pem"
