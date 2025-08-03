@@ -42,13 +42,6 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Snyk Scan for main
-        run: snyk test
-        working-directory: ./main
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
       - name: Snyk Scan for weather
         run: snyk test
         working-directory: ./weather
