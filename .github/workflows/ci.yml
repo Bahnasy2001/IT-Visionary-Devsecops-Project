@@ -7,7 +7,6 @@ on:
   pull_request:
     branches:
       - main
-      
 
 env:
   AWS_REGION: us-east-1
@@ -17,11 +16,12 @@ env:
   SONAR_HOST_URL: https://sonarcloud.io
 
 jobs:
+
   snyk-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
-      
+
       - name: Install Snyk CLI
         run: npm install -g snyk
 
@@ -48,7 +48,6 @@ jobs:
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
 
   build-and-analyze:
     name: Build, Push & Analyze Code
@@ -99,6 +98,9 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=IT-Visionary-Devsecops-Project
+            -Dsonar.organization=visionary-team2025
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
