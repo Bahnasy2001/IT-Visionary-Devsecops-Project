@@ -155,14 +155,17 @@ jobs:
         if: failure()
         run: exit 1
       - name: Terraform Output
+        working-directory: terraform
         run: |
           mkdir -p terraform_outputs
           terraform output -json > terraform_outputs/output.json
+
       - name: Upload Terraform Outputs
         uses: actions/upload-artifact@v4
         with:
           name: terraform-outputs
-          path: terraform_outputs
+          path: terraform/terraform_outputs
+
 
       - name: Terraform Output
         if: success()
