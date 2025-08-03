@@ -320,101 +320,7 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# Security Group for Web Servers (Public)
-resource "aws_security_group" "web" {
-  # checkov:skip=CKV2_AWS_5:reason="Web security group will be attached to web tier resources"
-  name_prefix = "${var.project_name}-web-${var.environment}-"
-  description = "Security group for web tier"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "HTTP from ALB"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
-
-  ingress {
-    description = "HTTPS from ALB"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
-  }
-
-  ingress {
-    description = "SSH from specific IPs only"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]  # Restrict to VPC CIDR
-  }
-
-  ingress {
-    description = "Application port 3000 from VPC"
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Application port 8082 from VPC"
-    from_port   = 8082
-    to_port     = 8082
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Application port 5000 from VPC"
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "MySQL from VPC"
-    from_port   = 3306
-    to_port     = 3306
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    description = "Allow outbound traffic to app tier"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    description = "Allow outbound traffic to app tier HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    description = "Allow outbound traffic to app tier SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  tags = {
-    Name        = "${var.project_name}-web-sg-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-# Security Group for Application Servers (Private)
+# Security Group for Application Servers (Private) - FIXED FOR SSM
 resource "aws_security_group" "app" {
   # checkov:skip=CKV2_AWS_5:reason="App security group will be attached to application tier resources"
   name_prefix = "${var.project_name}-app-${var.environment}-"
@@ -426,7 +332,6 @@ resource "aws_security_group" "app" {
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
   }
 
   ingress {
@@ -434,7 +339,6 @@ resource "aws_security_group" "app" {
     from_port       = 443
     to_port         = 443
     protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
   }
 
   ingress {
@@ -442,7 +346,15 @@ resource "aws_security_group" "app" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [aws_security_group.web.id]
+  }
+
+  # FIXED: Added HTTPS outbound for SSM connectivity
+  egress {
+    description = "HTTPS for SSM and AWS services"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -476,53 +388,7 @@ resource "aws_security_group" "app" {
   }
 }
 
-# Security Group for Database Servers (Private)
-resource "aws_security_group" "db" {
-  # checkov:skip=CKV_AWS_382:reason="Database security group has no egress traffic allowed (restricted)"
-  # checkov:skip=CKV2_AWS_5:reason="DB security group will be attached to database tier resources"
-  name_prefix = "${var.project_name}-db-${var.environment}-"
-  description = "Security group for database tier"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "MySQL from App SG"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  ingress {
-    description     = "PostgreSQL from App SG"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  ingress {
-    description     = "MongoDB from App SG"
-    from_port       = 27017
-    to_port         = 27017
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  egress {
-    description = "No outbound traffic allowed from database tier"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = []
-  }
-
-  tags = {
-    Name        = "${var.project_name}-db-sg-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-# Security Group for VPC Endpoints (SSM)
+# Security Group for VPC Endpoints (SSM) - IMPROVED
 resource "aws_security_group" "vpc_endpoint_sg" {
   name_prefix = "${var.project_name}-vpc-endpoint-${var.environment}-"
   description = "Allow EC2 instances in app tier to access SSM VPC endpoints"
@@ -534,6 +400,15 @@ resource "aws_security_group" "vpc_endpoint_sg" {
     to_port         = 443
     protocol        = "tcp"
     security_groups = [aws_security_group.app.id]
+  }
+
+  # ADDED: Allow HTTPS from VPC CIDR for broader compatibility
+  ingress {
+    description = "HTTPS from VPC CIDR"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr_block]
   }
 
   egress {
@@ -552,18 +427,49 @@ resource "aws_security_group" "vpc_endpoint_sg" {
 }
 
 #############################################
-# VPC Endpoints for SSM
+# VPC Endpoints for SSM - IMPROVED CONFIGURATION
 #############################################
 
 # SSM endpoint
 resource "aws_vpc_endpoint" "ssm" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.ssm"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
-
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
+
+  # ADDED: Policy for better access control
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = "*"
+        Action = [
+          "ssm:UpdateInstanceInformation",
+          "ssm:SendCommand",
+          "ssm:ListCommands",
+          "ssm:ListCommandInvocations",
+          "ssm:DescribeInstanceInformation",
+          "ssm:GetDeployablePatchSnapshotForInstance",
+          "ssm:GetDefaultPatchBaseline",
+          "ssm:GetManifest",
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:ListAssociations",
+          "ssm:ListInstanceAssociations",
+          "ssm:PutInventory",
+          "ssm:PutComplianceItems",
+          "ssm:PutConfigurePackageResult",
+          "ssm:UpdateAssociationStatus",
+          "ssm:UpdateInstanceAssociationStatus",
+          "ssm:ListTagsForResource"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = {
     Name        = "${var.project_name}-ssm-endpoint-${var.environment}"
@@ -574,13 +480,32 @@ resource "aws_vpc_endpoint" "ssm" {
 
 # EC2 messages endpoint
 resource "aws_vpc_endpoint" "ec2messages" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.ec2messages"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
-
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ec2messages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
+
+  # ADDED: Policy for better access control
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = "*"
+        Action = [
+          "ec2messages:AcknowledgeMessage",
+          "ec2messages:DeleteMessage",
+          "ec2messages:FailMessage",
+          "ec2messages:GetEndpoint",
+          "ec2messages:GetMessages",
+          "ec2messages:SendReply"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = {
     Name        = "${var.project_name}-ec2messages-endpoint-${var.environment}"
@@ -591,13 +516,30 @@ resource "aws_vpc_endpoint" "ec2messages" {
 
 # SSM messages endpoint
 resource "aws_vpc_endpoint" "ssmmessages" {
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.ssmmessages"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = aws_subnet.private[*].id
-  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
-
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.ssmmessages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
   private_dns_enabled = true
+
+  # ADDED: Policy for better access control
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = "*"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = {
     Name        = "${var.project_name}-ssmmessages-endpoint-${var.environment}"
@@ -606,4 +548,3 @@ resource "aws_vpc_endpoint" "ssmmessages" {
   }
 }
 
-# Get current region (needed for dynamic service names)
