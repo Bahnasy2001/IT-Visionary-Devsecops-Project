@@ -498,13 +498,13 @@ resource "aws_instance" "bastion" {
   }
 
   provisioner "file" {
-    source      = "~/Downloads/blogkey.pem"
+    source      = "home/ahmed/Downloads/blogkey.pem"
     destination = "/home/ec2-user/.ssh/blogkey.pem"
 
     connection {
       type        = "ssh"
       user        = "ec2-user"
-      private_key = file("~/Downloads/blogkey.pem")
+      private_key = file("home/ahmed/Downloads/blogkey.pem")
       host        = self.public_ip
     }
   }
