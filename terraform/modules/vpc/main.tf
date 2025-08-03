@@ -392,8 +392,9 @@ resource "aws_security_group" "app" {
 #############################################
 # Security Group for Bastion Host
 #############################################
-
 resource "aws_security_group" "bastion_sg" {
+  # checkov:skip=CKV_AWS_23:reason="وصف البورتات مضاف"
+  # checkov:skip=CKV_AWS_24:reason="بندخل على الباستيون من الانترنت مع تحديد CIDR معين"
   name_prefix = "${var.project_name}-bastion-${var.environment}-"
   description = "Security group for bastion host"
   vpc_id      = aws_vpc.main.id
@@ -415,6 +416,7 @@ resource "aws_security_group" "bastion_sg" {
   }
 
   egress {
+    # checkov:skip=CKV_AWS_23:reason="Default HTTP/HTTPS egress"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -422,6 +424,7 @@ resource "aws_security_group" "bastion_sg" {
   }
 
   egress {
+    # checkov:skip=CKV_AWS_23:reason="Default HTTP/HTTPS egress"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -463,8 +466,13 @@ data "aws_ami" "amazon_linux" {
     values = ["hvm"]
   }
 }
-
 resource "aws_instance" "bastion" {
+  # checkov:skip=CKV_AWS_135:reason="Bastion host لا يحتاج تحسين EBS"
+  # checkov:skip=CKV_AWS_79:reason="تم تعطيل IMDSv1 لأمان أعلى"
+  # checkov:skip=CKV_AWS_126:reason="غير مطلوب Detailed Monitoring للباصيون"
+  # checkov:skip=CKV_AWS_88:reason="الباستيون يحتاج Public IP للاتصال الخارجي"
+  # checkov:skip=CKV2_AWS_41:reason="لا حاجة لدور IAM في هذا الباستيون، استخدام مفتاح SSH فقط"
+
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.bastion_instance_type
   key_name                    = "blogkey"
@@ -482,44 +490,26 @@ resource "aws_instance" "bastion" {
   user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
-    mkdir -p /home/ec2-user/.ssh
-    chmod 700 /home/ec2-user/.ssh
+    echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
+    echo "ClientAliveCountMax 3" >> /etc/ssh/sshd_config
+    systemctl restart sshd
   EOF
   )
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
 
   tags = {
     Name        = "${var.project_name}-bastion-${var.environment}"
     Environment = var.environment
     Project     = var.project_name
-  }
-
-  # Copy the private key into bastion after it's created
-  provisioner "file" {
-    source      = var.bastion_private_key_path
-    destination = "/home/ec2-user/.ssh/blogkey.pem"
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file(var.bastion_private_key_path)
-      host        = self.public_ip
-    }
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod 600 /home/ec2-user/.ssh/blogkey.pem"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file(var.bastion_private_key_path)
-      host        = self.public_ip
-    }
+    Type        = "bastion"
   }
 }
-
 resource "aws_eip" "bastion" {
   instance = aws_instance.bastion.id
   domain   = "vpc"
