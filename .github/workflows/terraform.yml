@@ -170,5 +170,33 @@ jobs:
       - name: Terraform Output
         if: success()
         run: terraform output -json > output.json
+
+      - name: Notify Slack about Apply result
+        if: always()
+        run: |
+          if [ "${{ steps.apply.outcome }}" == "success" ]; then
+            COLOR="#36a64f"
+            MESSAGE="✅ Terraform apply succeeded in *${{ github.workflow }}* on *${{ github.ref_name }}*"
+          else
+            COLOR="#ff0000"
+            MESSAGE="❌ Terraform apply failed in *${{ github.workflow }}* on *${{ github.ref_name }}*"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [
+                {
+                  \"color\": \"$COLOR\",
+                  \"text\": \"$MESSAGE\",
+                  \"fields\": [
+                    {\"title\": \"Repository\", \"value\": \"${{ github.repository }}\", \"short\": true},
+                    {\"title\": \"Ref\", \"value\": \"${{ github.ref_name }}\", \"short\": true},
+                    {\"title\": \"Actor\", \"value\": \"${{ github.actor }}\", \"short\": true}
+                  ]
+                }
+              ]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+  
       
 ###S
