@@ -23,7 +23,10 @@ jobs:
       
       - name: Install Snyk CLI
         run: npm install -g snyk
-        
+
+      - name: Authenticate with Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
       - name: Snyk Scan for UI
         run: snyk test
         working-directory: ./UI
