@@ -55,20 +55,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: SonarQube Scan with Java 17
+      
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=itvisionary-project
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.git/**
+            -Dsonar.verbose=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: http://13.221.216.62:9000
-        run: |
-          export JAVA_HOME=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64
-          export PATH=$JAVA_HOME/bin:$PATH
-          java -version   # للتأكيد انه بيستخدم جافا 17
-          ./sonar-scanner-4.8.0.2856-linux/bin/sonar-scanner \
-            -Dsonar.projectKey=itvisionary-project \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_TOKEN \
-            -Dsonar.verbose=true
 
 
 
