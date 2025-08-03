@@ -67,6 +67,14 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: http://13.221.216.62:9000
+      - name: SonarQube Quality Gate check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          timeout: '120'   # وقت الانتظار الأقصى (ثواني) لحد ما النتيجة تطلع
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: http://13.221.216.62:9000
+    
 
 
 
