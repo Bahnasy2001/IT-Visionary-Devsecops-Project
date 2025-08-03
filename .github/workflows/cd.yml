@@ -1,79 +1,78 @@
 name: CD Pipeline
 
 on:
-  push:
-    branches: 
-      - dev
-  # workflow_run:
-  #   workflows: ['CI-Pipeline']
-  #   types:
-  #     - completed
+  workflow_run:
+    workflows: ["CI-Pipeline"]
+    types:
+      - completed
 
 env:
   AWS_REGION: us-east-1
-  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 jobs:
   deploy:
-    name: Deploy to All EC2 Instances via SSM
+    name: Deploy via Bastion to Private EC2s
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
+      - name: Download Terraform Outputs
+        uses: actions/download-artifact@v4
         with:
-          aws-access-key-id: ${{ secrets.ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          name: terraform-output
+          path: terraform_outputs
 
-      - name: Get list of EC2 instances with tags
-        id: get-ec2s
+      - name: Parse Private IPs
+        id: parse_ips
         run: |
-          INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=tag:Environment,Values=dev" "Name=tag:Project,Values=itvisionary" "Name=instance-state-name,Values=running" \
-            --query "Reservations[*].Instances[*].InstanceId" \
-            --output text)
+          IPS=$(jq -r '.private_instance_ips.value[]' terraform_outputs/terraform_outputs.json)
+          echo "PRIVATE_IPS=$IPS" >> $GITHUB_ENV
 
-          if [ -z "$INSTANCE_IDS" ]; then
-            echo "No running instances found with specified tags."
-            exit 1
-          fi
-
-          echo INSTANCE_IDS=$(echo "$INSTANCE_IDS" | xargs) >> $GITHUB_ENV
-          echo "Found EC2 instances: $INSTANCE_IDS"
-
-      - name: Run Docker Compose on all instances
-        id: deploy
+      - name: Set up SSH Key for Bastion
         run: |
-          echo "Running deployment via SSM on instances: $INSTANCE_IDS"
+          echo "${{ secrets.BLOGKEY_PEM }}" > bastion_key.pem
+          chmod 600 bastion_key.pem
 
-          aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy via Docker Compose" \
-            --instance-ids $INSTANCE_IDS \
-            --parameters 'commands=[
-              "mkdir -p /home/ec2-user/app",
-              "cd /home/ec2-user/app",
-              "rm -rf *",
-              "git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git .",
-              "cd /IT-Visionary-Devsecops-Project",
-              "docker compose up -d"
-            ]' \
-            --region $AWS_REGION \
-            --output text
-
-      - name: Send Slack notification
-        if: always()
+      - name: SSH to Bastion and Deploy
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            STATUS_MSG="✅ *CD Deployment Succeeded* on instances: $INSTANCE_IDS"
-          else
-            STATUS_MSG="❌ *CD Deployment Failed* on instances: $INSTANCE_IDS"
-          fi
+          for ip in $PRIVATE_IPS; do
+            echo "Deploying to $ip via Bastion..."
 
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"$STATUS_MSG\"}" \
-            $SLACK_WEBHOOK_URL
+            ssh -o StrictHostKeyChecking=no -i bastion_key.pem ec2-user@${{ secrets.BASTION_PUBLIC_IP }} "
+              ssh -o StrictHostKeyChecking=no ec2-user@$ip '
+                sudo yum install -y git docker &&
+                sudo systemctl start docker &&
+                sudo usermod -aG docker ec2-user &&
+                cd /home/ec2-user &&
+                rm -rf IT-Visionary-Devsecops-Project &&
+                git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git &&
+                cd IT-Visionary-Devsecops-Project &&
+                docker compose pull &&
+                docker compose up -d
+              '
+            "
+          done
+
+      - name: Slack Notification on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "✅ *CD Pipeline Success*: Deployment to EC2 instances via Bastion was successful!"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Slack Notification on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "❌ *CD Pipeline Failed*: Deployment to EC2 instances via Bastion failed. Check logs for details."
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
