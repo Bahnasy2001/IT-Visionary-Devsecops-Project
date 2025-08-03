@@ -60,22 +60,27 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-
+          
+      - name: Verify Java version
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
+          
       - name: Download sonar-scanner CLI
         run: |
           wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
           unzip sonar-scanner-cli-4.8.0.2856-linux.zip
-
-      - name: Update PATH and JAVA_HOME to Java 17
-        run: |
-          echo "JAVA_HOME=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64" >> $GITHUB_ENV
-          echo "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64/bin" >> $GITHUB_PATH
-
+          
       - name: Run sonar-scanner
         env:
           SONAR_HOST_URL: 'http://13.221.216.62:9000'
           SONAR_LOGIN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          # Explicitly use Java 17
+          export PATH="$JAVA_HOME/bin:$PATH"
+          echo "Using Java: $(which java)"
+          java -version
+          
           ./sonar-scanner-4.8.0.2856-linux/bin/sonar-scanner \
             -Dsonar.projectKey=itvisionary-project \
             -Dsonar.sources=. \
