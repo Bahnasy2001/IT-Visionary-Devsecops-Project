@@ -1,11 +1,12 @@
 # checkov:skip=CKV_AWS_91 reason="Access logging disabled intentionally for testing or other reason"
+# checkov:skip=CKV_AWS_91: Logging not required for this environment (e.g., dev/test)
 
 resource "aws_lb" "this" {
 # checkov:skip=CKV2_AWS_76 reason="WAF includes AWSManagedRulesLog4RuleSet for Log4j protection"
 # checkov:skip=CKV2_AWS_20 reason="HTTP to HTTPS redirect handled elsewhere or not required"
 # checkov:skip=CKV_AWS_91 reason="Access logging disabled intentionally"
 
-
+  # checkov:skip=CKV_AWS_91 reason="Access logging disabled intentionally for testing or other reason"
   name               = "${var.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"

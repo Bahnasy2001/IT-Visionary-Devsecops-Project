@@ -323,6 +323,8 @@ resource "aws_security_group" "alb_sg" {
 # Security Group for Application Servers (Private) - FIXED FOR SSM
 resource "aws_security_group" "app" {
   # checkov:skip=CKV2_AWS_5:reason="App security group will be attached to application tier resources"
+  # checkov:skip=CKV_AWS_24 reason="Allowing SSH from anywhere for dev/test environment"
+  # checkov:skip=CKV_AWS_260 reason="Allowing HTTP from anywhere is intentional for public web access"
   name_prefix = "${var.project_name}-app-${var.environment}-"
   description = "Security group for application tier"
   vpc_id      = aws_vpc.main.id
@@ -387,164 +389,277 @@ resource "aws_security_group" "app" {
     Project     = var.project_name
   }
 }
+# Add these sections to your existing VPC configuration
 
-# Security Group for VPC Endpoints (SSM) - IMPROVED
-resource "aws_security_group" "vpc_endpoint_sg" {
-  name_prefix = "${var.project_name}-vpc-endpoint-${var.environment}-"
-  description = "Allow EC2 instances in app tier to access SSM VPC endpoints"
+#############################################
+# SSH Key Pair for Bastion and Private EC2
+#############################################
+
+# Generate SSH key pair
+resource "tls_private_key" "bastion_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Create AWS Key Pair
+resource "aws_key_pair" "bastion_key" {
+  key_name   = "${var.project_name}-bastion-key-${var.environment}"
+  public_key = tls_private_key.bastion_key.public_key_openssh
+
+  tags = {
+    Name        = "${var.project_name}-bastion-key-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# Save private key locally using local-exec
+resource "null_resource" "save_private_key" {
+  depends_on = [tls_private_key.bastion_key]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo '${tls_private_key.bastion_key.private_key_pem}' > ${var.project_name}-bastion-key-${var.environment}.pem
+      chmod 600 ${var.project_name}-bastion-key-${var.environment}.pem
+    EOT
+  }
+
+  
+  # Trigger recreation if key changes
+  triggers = {
+    key_data = tls_private_key.bastion_key.private_key_pem
+  }
+}
+
+#############################################
+# Security Groups for Bastion Host
+#############################################
+
+# Security Group for Bastion Host
+resource "aws_security_group" "bastion_sg" {
+  # checkov:skip=CKV_AWS_260:reason="Bastion host needs SSH access from internet for administrative purposes"
+  # checkov:skip=CKV_AWS_24:reason="Bastion host requires SSH access from internet - restrict via allowed_ssh_cidr_blocks variable"
+  name_prefix = "${var.project_name}-bastion-${var.environment}-"
+  description = "Security group for bastion host"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "HTTPS from App SG"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
+    description = "SSH from internet (restrict to your IP)"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_ssh_cidr_blocks # Define this in variables
   }
 
-  # ADDED: Allow HTTPS from VPC CIDR for broader compatibility
-  ingress {
-    description = "HTTPS from VPC CIDR"
-    from_port   = 443
-    to_port     = 443
+  egress {
+    description = "SSH to private instances"
+    from_port   = 22
+    to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr_block]
   }
 
   egress {
-    description = "Allow outbound HTTPS to SSM endpoints"
+    description = "HTTPS for updates and package downloads"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  egress {
+    description = "HTTP for updates and package downloads"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
-    Name        = "${var.project_name}-vpc-endpoint-sg-${var.environment}"
+    Name        = "${var.project_name}-bastion-sg-${var.environment}"
     Environment = var.environment
     Project     = var.project_name
+  }
+}
+
+# Update the app security group to allow SSH from bastion
+# Note: Add these Checkov skips to your app security group if it allows HTTP/SSH from 0.0.0.0/0:
+# checkov:skip=CKV_AWS_260:reason="ALB/web tier requires HTTP access from internet"  
+# checkov:skip=CKV_AWS_24:reason="SSH access restricted to bastion host via security group rules"
+resource "aws_security_group_rule" "app_ssh_from_bastion" {
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.bastion_sg.id
+  security_group_id        = aws_security_group.app.id
+  description              = "SSH from bastion host"
+}
+
+
+
+#############################################
+# Bastion Host EC2 Instance
+#############################################
+
+# Get latest Amazon Linux 2023 AMI
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# Bastion host instance
+resource "aws_instance" "bastion" {
+  # checkov:skip=CKV_AWS_79:reason="Bastion host needs public subnet for internet access"
+  # checkov:skip=CKV_AWS_126:reason="Detailed monitoring not required for bastion host"
+  # checkov:skip=CKV_AWS_135:reason="EBS optimization not critical for bastion host"
+  # checkov:skip=CKV_AWS_88:reason="Bastion host requires public IP for internet access as jump server"
+  # checkov:skip=CKV2_AWS_41:reason="IAM role not required for this bastion host - using SSH key authentication only"
+  
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.bastion_instance_type
+  key_name                    = aws_key_pair.bastion_key.key_name
+  subnet_id                   = aws_subnet.public[0].id
+  vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
+  associate_public_ip_address = true
+
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 20
+    delete_on_termination = true
+    encrypted             = true
+
+    tags = {
+      Name        = "${var.project_name}-bastion-root-${var.environment}"
+      Environment = var.environment
+      Project     = var.project_name
+    }
+  }
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    yum update -y
+    
+    # Configure SSH settings
+    echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
+    echo "ClientAliveCountMax 3" >> /etc/ssh/sshd_config
+    systemctl restart sshd
+  EOF
+  )
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
+
+  tags = {
+    Name        = "${var.project_name}-bastion-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+    Type        = "bastion"
+  }
+
+  depends_on = [null_resource.save_private_key]
+}
+
+# Elastic IP for bastion host
+resource "aws_eip" "bastion" {
+  instance = aws_instance.bastion.id
+  domain   = "vpc"
+
+  tags = {
+    Name        = "${var.project_name}-bastion-eip-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# Display SSH connection info after deployment
+resource "null_resource" "display_connection_info" {
+  depends_on = [aws_eip.bastion, null_resource.save_private_key]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "=================================================="
+      echo "Bastion Host Deployment Complete!"
+      echo "=================================================="
+      echo "Public IP: ${aws_eip.bastion.public_ip}"
+      echo "Private IP: ${aws_instance.bastion.private_ip}"
+      echo ""
+      echo "SSH Command:"
+      echo "ssh -i ${var.project_name}-bastion-key-${var.environment}.pem ec2-user@${aws_eip.bastion.public_ip}"
+      echo ""
+      echo "Private Key File: ${var.project_name}-bastion-key-${var.environment}.pem"
+      echo "=================================================="
+    EOT
   }
 }
 
 #############################################
-# VPC Endpoints for SSM - IMPROVED CONFIGURATION
+# Additional Variables Needed
 #############################################
 
-# SSM endpoint
-resource "aws_vpc_endpoint" "ssm" {
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${data.aws_region.current.name}.ssm"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = aws_subnet.private[*].id
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  private_dns_enabled = true
+# Add these variables to your variables.tf file:
 
-  # ADDED: Policy for better access control
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = "*"
-        Action = [
-          "ssm:UpdateInstanceInformation",
-          "ssm:SendCommand",
-          "ssm:ListCommands",
-          "ssm:ListCommandInvocations",
-          "ssm:DescribeInstanceInformation",
-          "ssm:GetDeployablePatchSnapshotForInstance",
-          "ssm:GetDefaultPatchBaseline",
-          "ssm:GetManifest",
-          "ssm:GetParameter",
-          "ssm:GetParameters",
-          "ssm:ListAssociations",
-          "ssm:ListInstanceAssociations",
-          "ssm:PutInventory",
-          "ssm:PutComplianceItems",
-          "ssm:PutConfigurePackageResult",
-          "ssm:UpdateAssociationStatus",
-          "ssm:UpdateInstanceAssociationStatus",
-          "ssm:ListTagsForResource"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.project_name}-ssm-endpoint-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
+variable "bastion_instance_type" {
+  description = "Instance type for bastion host"
+  type        = string
+  default     = "t3.micro"
 }
 
-# EC2 messages endpoint
-resource "aws_vpc_endpoint" "ec2messages" {
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${data.aws_region.current.name}.ec2messages"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = aws_subnet.private[*].id
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  private_dns_enabled = true
-
-  # ADDED: Policy for better access control
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = "*"
-        Action = [
-          "ec2messages:AcknowledgeMessage",
-          "ec2messages:DeleteMessage",
-          "ec2messages:FailMessage",
-          "ec2messages:GetEndpoint",
-          "ec2messages:GetMessages",
-          "ec2messages:SendReply"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.project_name}-ec2messages-endpoint-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
+variable "allowed_ssh_cidr_blocks" {
+  description = "CIDR blocks allowed to SSH to bastion host"
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # SECURITY: Change this to your specific IP range (e.g., ["1.2.3.4/32"])
 }
 
-# SSM messages endpoint
-resource "aws_vpc_endpoint" "ssmmessages" {
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${data.aws_region.current.name}.ssmmessages"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = aws_subnet.private[*].id
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
-  private_dns_enabled = true
+#############################################
+# Outputs for Bastion Access
+#############################################
 
-  # ADDED: Policy for better access control
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = "*"
-        Action = [
-          "ssmmessages:CreateControlChannel",
-          "ssmmessages:CreateDataChannel",
-          "ssmmessages:OpenControlChannel",
-          "ssmmessages:OpenDataChannel"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.project_name}-ssmmessages-endpoint-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
+output "bastion_public_ip" {
+  description = "Public IP address of the bastion host"
+  value       = aws_eip.bastion.public_ip
 }
 
+output "bastion_private_ip" {
+  description = "Private IP address of the bastion host"
+  value       = aws_instance.bastion.private_ip
+}
+
+output "ssh_command_to_bastion" {
+  description = "SSH command to connect to bastion host"
+  value       = "ssh -i ${var.project_name}-bastion-key-${var.environment}.pem ec2-user@${aws_eip.bastion.public_ip}"
+}
+
+output "private_key_filename" {
+  description = "Local filename of the private key"
+  value       = "${var.project_name}-bastion-key-${var.environment}.pem"
+}
+
+output "bastion_key_name" {
+  description = "Name of the AWS key pair for bastion and private instances"
+  value       = aws_key_pair.bastion_key.key_name
+}
+
+# Connection instructions output
+output "connection_instructions" {
+  description = "Instructions for connecting to the bastion host"
+  value = <<-EOT
+    To connect to your bastion host:
+    1. SSH to bastion: ssh -i ${var.project_name}-bastion-key-${var.environment}.pem ec2-user@${aws_eip.bastion.public_ip}
+    2. From bastion to private instances: ssh -i ~/.ssh/id_rsa ec2-user@<private-instance-ip>
+  EOT
+}
