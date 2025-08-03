@@ -389,48 +389,6 @@ resource "aws_security_group" "app" {
     Project     = var.project_name
   }
 }
-# Add these sections to your existing VPC configuration
-
-#############################################
-# SSH Key Pair for Bastion and Private EC2
-#############################################
-
-# Generate SSH key pair
-resource "tls_private_key" "bastion_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-# Create AWS Key Pair
-resource "aws_key_pair" "bastion_key" {
-  key_name   = "${var.project_name}-bastion-key-${var.environment}"
-  public_key = tls_private_key.bastion_key.public_key_openssh
-
-  tags = {
-    Name        = "${var.project_name}-bastion-key-${var.environment}"
-    Environment = var.environment
-    Project     = var.project_name
-  }
-}
-
-# Save private key locally using local-exec
-resource "null_resource" "save_private_key" {
-  depends_on = [tls_private_key.bastion_key]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo '${tls_private_key.bastion_key.private_key_pem}' > ${var.project_name}-bastion-key-${var.environment}.pem
-      chmod 600 ${var.project_name}-bastion-key-${var.environment}.pem
-    EOT
-  }
-
-  
-  # Trigger recreation if key changes
-  triggers = {
-    key_data = tls_private_key.bastion_key.private_key_pem
-  }
-}
-
 #############################################
 # Security Groups for Bastion Host
 #############################################
@@ -496,8 +454,6 @@ resource "aws_security_group_rule" "app_ssh_from_bastion" {
   description              = "SSH from bastion host"
 }
 
-
-
 #############################################
 # Bastion Host EC2 Instance
 #############################################
@@ -528,7 +484,7 @@ resource "aws_instance" "bastion" {
   
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.bastion_instance_type
-  key_name                    = aws_key_pair.bastion_key.key_name
+  key_name                    = "blogkey"                       # استخدم المفتاح الموجود خارج Terraform
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
   associate_public_ip_address = true
@@ -549,7 +505,7 @@ resource "aws_instance" "bastion" {
   user_data = base64encode(<<-EOF
     #!/bin/bash
     yum update -y
-    
+
     # Configure SSH settings
     echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
     echo "ClientAliveCountMax 3" >> /etc/ssh/sshd_config
@@ -570,8 +526,6 @@ resource "aws_instance" "bastion" {
     Project     = var.project_name
     Type        = "bastion"
   }
-
-  depends_on = [null_resource.save_private_key]
 }
 
 # Elastic IP for bastion host
@@ -588,7 +542,7 @@ resource "aws_eip" "bastion" {
 
 # Display SSH connection info after deployment
 resource "null_resource" "display_connection_info" {
-  depends_on = [aws_eip.bastion, null_resource.save_private_key]
+  depends_on = [aws_eip.bastion]
 
   provisioner "local-exec" {
     command = <<-EOT
@@ -599,9 +553,9 @@ resource "null_resource" "display_connection_info" {
       echo "Private IP: ${aws_instance.bastion.private_ip}"
       echo ""
       echo "SSH Command:"
-      echo "ssh -i ${var.project_name}-bastion-key-${var.environment}.pem ec2-user@${aws_eip.bastion.public_ip}"
+      echo "ssh -i /path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}"
       echo ""
-      echo "Private Key File: ${var.project_name}-bastion-key-${var.environment}.pem"
+      echo "Private Key File: /path/to/blogkey.pem"
       echo "=================================================="
     EOT
   }
@@ -641,17 +595,17 @@ output "bastion_private_ip" {
 
 output "ssh_command_to_bastion" {
   description = "SSH command to connect to bastion host"
-  value       = "ssh -i ${var.project_name}-bastion-key-${var.environment}.pem ec2-user@${aws_eip.bastion.public_ip}"
+  value       = "ssh -i /path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}"
 }
 
 output "private_key_filename" {
   description = "Local filename of the private key"
-  value       = "${var.project_name}-bastion-key-${var.environment}.pem"
+  value       = "/path/to/blogkey.pem"
 }
 
 output "bastion_key_name" {
   description = "Name of the AWS key pair for bastion and private instances"
-  value       = aws_key_pair.bastion_key.key_name
+  value       = "blogkey"
 }
 
 # Connection instructions output
@@ -659,7 +613,7 @@ output "connection_instructions" {
   description = "Instructions for connecting to the bastion host"
   value = <<-EOT
     To connect to your bastion host:
-    1. SSH to bastion: ssh -i ${var.project_name}-bastion-key-${var.environment}.pem ec2-user@${aws_eip.bastion.public_ip}
+    1. SSH to bastion: ssh -i /path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}
     2. From bastion to private instances: ssh -i ~/.ssh/id_rsa ec2-user@<private-instance-ip>
   EOT
 }
