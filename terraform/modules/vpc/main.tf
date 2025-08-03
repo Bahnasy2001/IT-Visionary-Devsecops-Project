@@ -390,10 +390,6 @@ resource "aws_security_group" "app" {
   }
 }
 #############################################
-# Security Groups for Bastion Host
-#############################################
-
-#############################################
 # Security Group for Bastion Host
 #############################################
 
@@ -497,8 +493,9 @@ resource "aws_instance" "bastion" {
     Project     = var.project_name
   }
 
+  # Copy the private key into bastion after it's created
   provisioner "file" {
-    source      = "/home/ahmed/Downloads/blogkey.pem"
+    source      = var.bastion_private_key_path
     destination = "/home/ec2-user/.ssh/blogkey.pem"
 
     connection {
@@ -517,7 +514,7 @@ resource "aws_instance" "bastion" {
     connection {
       type        = "ssh"
       user        = "ec2-user"
-      private_key = file("/home/ahmed/Downloads/blogkey.pem")
+      private_key = file(var.bastion_private_key_path)
       host        = self.public_ip
     }
   }
@@ -544,6 +541,11 @@ variable "allowed_ssh_cidr_blocks" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "bastion_private_key_path" {
+  description = "Path to private key file on local machine"
+  type        = string
+}
+
 #############################################
 # Outputs
 #############################################
@@ -553,7 +555,7 @@ output "bastion_public_ip" {
 }
 
 output "ssh_command_to_bastion" {
-  value = "ssh -i /absolute/path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}"
+  value = "ssh -i ${var.bastion_private_key_path} ec2-user@${aws_eip.bastion.public_ip}"
 }
 
 output "blogkey_inside_bastion" {
@@ -563,13 +565,8 @@ output "blogkey_inside_bastion" {
 output "connection_instructions" {
   value = <<-EOT
     SSH to bastion:
-    ssh -i /absolute/path/to/blogkey.pem ec2-user@${aws_eip.bastion.public_ip}
+    ssh -i ${var.bastion_private_key_path} ec2-user@${aws_eip.bastion.public_ip}
     Then from bastion:
     ssh -i ~/.ssh/blogkey.pem ec2-user@<private-instance-ip>
   EOT
-}
-
-variable "bastion_private_key_path" {
-  description = "Path to private key file"
-  type        = string
 }

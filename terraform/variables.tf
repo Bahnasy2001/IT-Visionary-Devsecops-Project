@@ -25,6 +25,7 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+###
 variable "name_prefix" {
   description = "Prefix for resource names"
   type        = string
@@ -56,10 +57,21 @@ variable "max_size" {
   default = 2
 }
 
+
+######
+
+
 variable "target_type" {
   description = "Type of target (instance or ip)"
   type        = string
   default     = "instance"
+}
+
+#network 
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
 }
 
 variable "project_name" {
@@ -103,3 +115,7 @@ variable "tags" {
   type        = map(string)
 }
 
+variable "bastion_private_key_path" {
+  description = "Path to private key file on local machine"
+  type        = string
+}
