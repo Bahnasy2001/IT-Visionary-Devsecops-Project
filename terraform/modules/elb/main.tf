@@ -194,9 +194,9 @@ resource "random_string" "bucket_suffix" {
   upper   = false
 }
 
-resource "aws_lb_target_group" "this" {
+resource "aws_lb_target_group" "test" {
 # checkov:skip=CKV_AWS_378 reason="Target group intentionally uses HTTP; TLS termination at ALB"
-  name     = "${var.name_prefix}-tg1"
+  name     = "${var.name_prefix}-tg2"
   port        = 3000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
