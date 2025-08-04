@@ -208,7 +208,7 @@ resource "aws_lb_target_group" "this" {
   health_check {
     path                = "/"
     protocol            = "HTTP"
-    port                = "8082"
+    port                = "3000"
     healthy_threshold   = 2
     unhealthy_threshold = 2
     timeout             = 5
