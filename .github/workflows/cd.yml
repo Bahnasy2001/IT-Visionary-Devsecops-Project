@@ -37,6 +37,7 @@ jobs:
                 cd /home/ec2-user/
                 rm -rf IT-Visionary-Devsecops-Project
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
+                git checkout dev
                 cd IT-Visionary-Devsecops-Project/
                 docker compose up -d --build
               '
