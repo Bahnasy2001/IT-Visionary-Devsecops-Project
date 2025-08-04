@@ -38,9 +38,9 @@ jobs:
                 echo Installing dependencies...
                 sudo yum install -y git
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
-                cd IT-Visionary-Devsecops-Project
-                docker compose pull
-                docker compose up -d
+                cd IT-Visionary-Devsecops-Project/
+                docker compose pull || docker-compose pull
+                docker compose up -d || docker-compose up -d
               '
             "
           done
