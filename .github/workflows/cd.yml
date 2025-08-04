@@ -34,14 +34,12 @@ jobs:
 
             ssh -o StrictHostKeyChecking=no -i bastion_key.pem ec2-user@${{ secrets.BASTION_PUBLIC_IP }} "
               ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/blogkey.pem ec2-user@$ip '
-                cd /home/ec2-user
-                echo Installing dependencies...
-                sudo yum install -y git
+                cd /home/ec2-user/
                 rm -rf IT-Visionary-Devsecops-Project
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
-                cd IT-Visionary-Devsecops-Project
-                docker compose pull
-                docker compose up -d
+                cd IT-Visionary-Devsecops-Project/
+                git checkout dev
+                docker compose up -d --build
               '
             "
           done

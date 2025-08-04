@@ -26,22 +26,73 @@ jobs:
       - name: Authenticate with Snyk
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
 
-      - name: Snyk Scan for UI
-        run: snyk test
+      - name: Cache npm dependencies (UI)
+        uses: actions/cache@v4
+        with:
+          path: ./UI/node_modules
+          key: ${{ runner.os }}-ui-${{ hashFiles('UI/package-lock.json') }}
+
+      - name: Snyk Test UI (fail on high+)
+        run: snyk test --severity-threshold=high
         working-directory: ./UI
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Snyk Scan for auth
-        run: snyk test
-        working-directory: ./auth
+      - name: Snyk Monitor UI
+        run: snyk monitor
+        working-directory: ./UI
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Snyk Scan for weather
-        run: snyk test
+      - name: Snyk Test authdb (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./auth/src/authdb
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor authdb
+        run: snyk monitor
+        working-directory: ./auth/src/authdb
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Test auth main (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./auth/src/main
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor auth main
+        run: snyk monitor
+        working-directory: ./auth/src/main
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Cache pip dependencies (weather)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('weather/requirements.txt') }}
+
+      - name: Install Python dependencies (weather)
+        run: pip install -r requirements.txt
+        working-directory: ./weather
+
+      - name: Snyk Test weather (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./weather
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor weather
+        run: snyk monitor
         working-directory: ./weather
         continue-on-error: true
         env:
