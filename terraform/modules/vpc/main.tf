@@ -320,6 +320,40 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
+
+# Elastic IP
+resource "aws_eip" "nat_eip" {
+  vpc = true
+
+  tags = {
+    Name        = "${var.project_name}-nat-eip-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# NAT Gateway
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public[0].id
+
+  tags = {
+    Name        = "${var.project_name}-nat-${var.environment}"
+    Environment = var.environment
+    Project     = var.project_name
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# Route from private subnets to NAT
+resource "aws_route" "private_nat" {
+  count                  = length(var.private_subnet_cidrs)
+  route_table_id         = aws_route_table.private[count.index].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat.id
+}
+
 # Security Group for Application Servers (Private) - FIXED FOR SSM
 resource "aws_security_group" "app" {
   # checkov:skip=CKV2_AWS_5:reason="App security group will be attached to application tier resources"
@@ -335,6 +369,14 @@ resource "aws_security_group" "app" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/16"] # الأفضل نخليها من subnet ALB أو من SG ALB
+  }
+
+  ingress {
+  description = "Allow Prometheus scrape"
+  from_port   = 9100
+  to_port     = 9100
+  protocol    = "tcp"
+  cidr_blocks = ["10.0.0.0/16"]  # VPC CIDR أو ممكن private subnet CIDR فقط
   }
 
   ingress {
@@ -575,17 +617,6 @@ variable "bastion_private_key_path" {
 #############################################
 # Outputs
 #############################################
-data "aws_instances" "asg_instances" {
-  filter {
-    name   = "tag:Project"
-    values = ["itvisionary"]
-  }
-
-  filter {
-    name   = "tag:Environment"
-    values = ["dev"]
-  }
-}
 
 output "bastion_public_ip" {
   value = aws_eip.bastion.public_ip
