@@ -36,7 +36,6 @@ jobs:
               ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/blogkey.pem ec2-user@$ip '
                 cd /home/ec2-user
                 echo Installing dependencies...
-                sudo yum update -y
                 sudo yum install -y git
                 rm -rf IT-Visionary-Devsecops-Project
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
