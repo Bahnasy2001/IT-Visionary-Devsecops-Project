@@ -34,9 +34,6 @@ jobs:
 
             ssh -o StrictHostKeyChecking=no -i bastion_key.pem ec2-user@${{ secrets.BASTION_PUBLIC_IP }} "
               ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/blogkey.pem ec2-user@$ip '
-                sudo yum install -y git docker
-                sudo systemctl start docker
-                sudo usermod -aG docker ec2-user
                 cd /home/ec2-user
                 rm -rf IT-Visionary-Devsecops-Project
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
