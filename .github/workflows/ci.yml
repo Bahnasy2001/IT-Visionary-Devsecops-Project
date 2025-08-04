@@ -12,8 +12,7 @@ env:
   ECR_URI_AUTH: ${{ secrets.ECR_URI_AUTH }}
   ECR_URI_WEATHER: ${{ secrets.ECR_URI_WEATHER }}
   ECR_URI_UI: ${{ secrets.ECR_URI_UI }}
-  SONAR_HOST_URL: https://sonarcloud.io
-
+  
 jobs:
 
   snyk-scan:
@@ -123,13 +122,4 @@ jobs:
           docker build -t $ECR_URI_UI:${TAG} ./UI
           docker push $ECR_URI_UI:${TAG}
 
-      - name: SonarCloud Analysis
-        uses: SonarSource/sonarcloud-github-action@v2
-        with:
-          projectBaseDir: .
-          args: >
-            -Dsonar.projectKey=IT-Visionary-Devsecops-Project
-            -Dsonar.organization=visionary-team2025
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    
