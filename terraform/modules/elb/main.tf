@@ -194,7 +194,7 @@ resource "random_string" "bucket_suffix" {
   upper   = false
 }
 
-resource "aws_lb_target_group" "test" {
+resource "aws_lb_target_group" "this" {
 # checkov:skip=CKV_AWS_378 reason="Target group intentionally uses HTTP; TLS termination at ALB"
   name     = "${var.name_prefix}-tg2"
   port        = 3000
