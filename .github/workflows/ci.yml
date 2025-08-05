@@ -120,7 +120,7 @@ jobs:
       - name: SonarQube Quality Gate check
         uses: sonarsource/sonarqube-quality-gate-action@master
         with:
-          timeout: '120'   # وقت الانتظار الأقصى (ثواني) لحد ما النتيجة تطلع
+          timeout: '120'  
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: http://13.221.216.62:9000
@@ -130,6 +130,8 @@ jobs:
 
   build-and-analyze:
     name: Build, Push & Analyze Code
+    needs: [snyk-scan, Sonarqube-Analysis] 
+
     runs-on: ubuntu-latest
 
     steps:
