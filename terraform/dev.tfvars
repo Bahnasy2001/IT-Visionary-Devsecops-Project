@@ -47,8 +47,8 @@ ses_sender_email    = "ahmedrafat530@gmail.com"
 ses_recipient_email = "ahmedrafat530@gmail.com"
 
 name_prefix      = "itv-dev"
-ami_id           = "ami-0d1d34fdacafd9e54"
-instance_type    = "t2.micro"
+ami_id           = "ami-09743758e0cf1413f"
+instance_type    = "t2.large"
 desired_capacity = 2
 min_size         = 1
 max_size         = 3

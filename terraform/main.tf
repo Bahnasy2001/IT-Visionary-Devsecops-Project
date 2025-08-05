@@ -40,9 +40,10 @@ module "elb" {
   name_prefix        = var.name_prefix
   vpc_id             = module.vpc.vpc_id
   public_subnet_ids  = module.vpc.public_subnet_ids
-  security_group_ids = [module.vpc.security_group_ids.alb]
+  security_group_id = [module.vpc.sg_alb_id]
   target_type        = var.target_type
   tags               = var.tags
+
 }
 
 
@@ -83,7 +84,6 @@ module "vpc" {
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
   availability_zones   = var.availability_zones
-
   bastion_private_key_path = var.bastion_private_key_path
 }
 data "aws_instances" "asg_instances" {

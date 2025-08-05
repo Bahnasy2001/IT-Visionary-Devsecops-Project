@@ -10,10 +10,10 @@ resource "aws_lb" "this" {
   name               = "${var.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = var.security_group_ids
+  security_groups    = var.security_group_id 
   subnets            = var.public_subnet_ids
   drop_invalid_header_fields = true
-  enable_deletion_protection = true
+  enable_deletion_protection = false
 
   access_logs {
     bucket  = aws_s3_bucket.alb_logs.bucket
@@ -196,7 +196,7 @@ resource "random_string" "bucket_suffix" {
 
 resource "aws_lb_target_group" "this" {
 # checkov:skip=CKV_AWS_378 reason="Target group intentionally uses HTTP; TLS termination at ALB"
-  name     = "${var.name_prefix}-tg2"
+  name     = "${var.name_prefix}-tg3"
   port        = 3000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id

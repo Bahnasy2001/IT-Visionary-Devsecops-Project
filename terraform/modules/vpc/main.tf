@@ -265,37 +265,7 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  ingress {
-    description = "Allow port 3000"
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # أو غيرها حسب الحاجة
-  }
-
-  ingress {
-    description = "Allow port 8082"
-    from_port   = 8082
-    to_port     = 8082
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Allow port 5000"
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Allow port 3306"
-    from_port   = 3306
-    to_port     = 3306
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # لو ده MySQL/MariaDB خلي بالك من الفتح العام، ممكن تخصص CIDR blocks آمنة أكتر
-  }
+  
 
   egress {
     description = "Allow outbound traffic to web tier"
@@ -400,7 +370,7 @@ resource "aws_security_group" "app" {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    security_groups = [aws_security_group.alb_sg.id]  # أو CIDR blocks حسب الحاجة
   }
 
   ingress {

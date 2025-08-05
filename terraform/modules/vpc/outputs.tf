@@ -36,10 +36,14 @@ output "private_route_table_ids" {
 output "security_group_ids" {
   description = "Map of security group IDs"
   value = {
-    alb     = aws_security_group.alb_sg.id
     app     = aws_security_group.app.id
-    default = aws_security_group.default.id
+   
 
     
   }
 } 
+
+output "sg_alb_id" {
+  description = "Security group ID for the Application Load Balancer"
+  value       = aws_security_group.alb_sg.id 
+}
