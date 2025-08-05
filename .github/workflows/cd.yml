@@ -11,7 +11,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  PRIVATE_IPS: 10.0.11.100 10.0.12.104
+  PRIVATE_IPS: 10.0.11.137 10.0.12.119
 
 jobs:
   deploy:
