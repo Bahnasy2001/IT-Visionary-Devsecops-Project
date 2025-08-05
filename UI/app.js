@@ -87,6 +87,6 @@ app.get("/weather/:city",(req,res) => {
             console.log(error)
         })
 })
-app.listen(port,'0.0.0.0', () => {
-    console.log(`Weather app listening at http://0.0.0.0:${port}`)
+app.listen(port, () => {
+    console.log(`Weather app listening at http://localhost:${port}`)
 })
