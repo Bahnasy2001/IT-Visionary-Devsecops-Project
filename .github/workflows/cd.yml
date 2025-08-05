@@ -11,13 +11,13 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  PRIVATE_IPS: 44.198.357.81
+  PRIVATE_IPS: 44.198.157.18
 
 jobs:
   deploy:
     name: Deploy via Bastion to Private EC2s
     runs-on: ubuntu-latest
-# 44.198.357.81
+# 44.198.157.18
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4.2.2
