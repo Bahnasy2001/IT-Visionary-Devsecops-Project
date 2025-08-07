@@ -350,8 +350,8 @@ resource "aws_security_group" "app" {
   }
   ingress {
   description = "Allow Prometheus scrape"
-  from_port   = 9133
-  to_port     = 9133
+  from_port   = 9113
+  to_port     = 9113
   protocol    = "tcp"
   cidr_blocks = ["10.0.0.0/16"]  # VPC CIDR أو ممكن private subnet CIDR فقط
   }
