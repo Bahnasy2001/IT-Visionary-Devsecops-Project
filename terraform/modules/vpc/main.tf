@@ -415,6 +415,13 @@ resource "aws_security_group" "app" {
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/16"]
   }
+  egress {
+  description = "Allow all outbound traffic"
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"  # -1 means all protocols
+  cidr_blocks = ["0.0.0.0/0"]
+  } 
 
 
   # FIXED: Added HTTPS outbound for SSM connectivity
