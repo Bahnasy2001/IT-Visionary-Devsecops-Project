@@ -82,7 +82,9 @@ resource "aws_s3_bucket_public_access_block" "alb_logs" {
 
 # S3 bucket policy for ALB access
 resource "aws_s3_bucket_policy" "alb_logs" {
-  bucket = "itv-dev-alb-logs-cx3170h6"
+  bucket = aws_s3_bucket.alb_logs.id
+
+  depends_on = [aws_s3_bucket.alb_logs]
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -92,20 +94,21 @@ resource "aws_s3_bucket_policy" "alb_logs" {
         Principal = {
           AWS = "arn:aws:iam::127311923021:root"
         }
-        Action   = "s3:PutObject"
-        Resource = "arn:aws:s3:::itv-dev-alb-logs-cx3170h6/AWSLogs/911167904183/*"
+        Action = "s3:PutObject"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.alb_logs.bucket}/AWSLogs/911167904183/*"
       },
       {
         Effect = "Allow"
         Principal = {
           AWS = "arn:aws:iam::127311923021:root"
         }
-        Action   = "s3:GetBucketAcl"
-        Resource = "arn:aws:s3:::itv-dev-alb-logs-cx3170h6"
+        Action = "s3:GetBucketAcl"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.alb_logs.bucket}"
       }
     ]
   })
 }
+
 
 resource "aws_s3_bucket_lifecycle_configuration" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
