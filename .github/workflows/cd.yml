@@ -34,7 +34,7 @@ jobs:
             echo "Deploying to $ip via Bastion..."
 
             ssh -o StrictHostKeyChecking=no -i bastion_key.pem ubuntu@${{ secrets.BASTION_PUBLIC_IP }} "
-              ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/blogkey.pem ec2-user@$ip '
+              ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/blogkey.pem ubuntu@$ip '
                 cd /home/ubuntu/
 
                 rm -rf IT-Visionary-Devsecops-Project
