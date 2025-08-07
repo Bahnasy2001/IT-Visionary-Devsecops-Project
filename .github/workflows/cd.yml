@@ -11,6 +11,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
+
   PRIVATE_IPS: 10.0.12.21 10.0.11.9
 
 jobs:
@@ -20,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Set up SSH Key for Bastion
         run: |
@@ -34,7 +35,8 @@ jobs:
 
             ssh -o StrictHostKeyChecking=no -i bastion_key.pem ubuntu@${{ secrets.BASTION_PUBLIC_IP }} "
               ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/blogkey.pem ec2-user@$ip '
-                cd /home/ec2-user/
+                cd /home/ubuntu/
+
                 rm -rf IT-Visionary-Devsecops-Project
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
                 cd IT-Visionary-Devsecops-Project/
