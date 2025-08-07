@@ -282,7 +282,20 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/16"]
   }
-
+  egress {
+    description = "Allow outbound traffic to web tier HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+  egress {
+  description = "Allow all outbound traffic"
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"  # -1 means all protocols
+  cidr_blocks = ["0.0.0.0/0"]
+  } 
   tags = {
     Name        = "${var.project_name}-alb-sg-${var.environment}"
     Environment = var.environment
