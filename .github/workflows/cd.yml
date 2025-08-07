@@ -11,7 +11,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  PRIVATE_IPS: 10.0.11.137 10.0.12.119
+  PRIVATE_IPS: 10.0.12.21 10.0.11.9
 
 jobs:
   deploy:
@@ -32,8 +32,8 @@ jobs:
           for ip in $PRIVATE_IPS; do
             echo "Deploying to $ip via Bastion..."
 
-            ssh -o StrictHostKeyChecking=no -i bastion_key.pem ec2-user@${{ secrets.BASTION_PUBLIC_IP }} "
-              ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/blogkey.pem ec2-user@$ip '
+            ssh -o StrictHostKeyChecking=no -i bastion_key.pem ubuntu@${{ secrets.BASTION_PUBLIC_IP }} "
+              ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/blogkey.pem ec2-user@$ip '
                 cd /home/ec2-user/
                 rm -rf IT-Visionary-Devsecops-Project
                 git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
