@@ -5,7 +5,6 @@ resource "aws_lb" "this" {
 # checkov:skip=CKV2_AWS_76 reason="WAF includes AWSManagedRulesLog4RuleSet for Log4j protection"
 # checkov:skip=CKV2_AWS_20 reason="HTTP to HTTPS redirect handled elsewhere or not required"
 # checkov:skip=CKV_AWS_91 reason="Access logging disabled intentionally"
-
   # checkov:skip=CKV_AWS_91 reason="Access logging disabled intentionally for testing or other reason"
   name               = "${var.name_prefix}-alb"
   internal           = false
@@ -14,6 +13,7 @@ resource "aws_lb" "this" {
   subnets            = var.public_subnet_ids
   drop_invalid_header_fields = true
   enable_deletion_protection = false
+  # checkov:skip=CKV_AWS_150 reason="ALB uses public subnets for internet-facing applications"
 
   access_logs {
     bucket  = aws_s3_bucket.alb_logs.bucket
