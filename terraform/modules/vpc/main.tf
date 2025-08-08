@@ -404,6 +404,13 @@ resource "aws_security_group" "app" {
 
   ingress {
     description = "Allow app port 5000"
+    from_port   = 4040
+    to_port     = 4040
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+  ingress {
+    description = "Allow app port 5000"
     from_port   = 5000
     to_port     = 5000
     protocol    = "tcp"
