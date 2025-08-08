@@ -416,6 +416,14 @@ resource "aws_security_group" "app" {
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/16"]
   }
+  
+  ingress {
+    description = "Allow app port 5000"
+    from_port   = 9115
+    to_port     = 9115
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
 
   ingress {
     description = "Allow MySQL"
