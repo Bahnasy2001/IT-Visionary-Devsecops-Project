@@ -122,5 +122,8 @@ To ensure visibility and reliability:
 🚀 DevOps Engineer
 
 📧 Email: [hassanbahnasy872@gmail.com](mailto:hassanbahnasy872@gmail.com)
+
 🔗 LinkedIn: [linkedin.com/in/hassanbahnasy](https://www.linkedin.com/in/hassanbahnasy)
+
 💻 GitHub: [github.com/Bahnasy2001](https://github.com/Bahnasy2001)
+
