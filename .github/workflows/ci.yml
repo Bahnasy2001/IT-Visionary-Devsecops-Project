@@ -1,0 +1,181 @@
+name: CI-Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+      
+env:
+  AWS_REGION: us-east-1
+  ECR_URI_AUTH: ${{ secrets.ECR_URI_AUTH }}
+  ECR_URI_WEATHER: ${{ secrets.ECR_URI_WEATHER }}
+  ECR_URI_UI: ${{ secrets.ECR_URI_UI }}
+  
+jobs:
+
+  snyk-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Authenticate with Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
+      - name: Cache npm dependencies (UI)
+        uses: actions/cache@v4
+        with:
+          path: ./UI/node_modules
+          key: ${{ runner.os }}-ui-${{ hashFiles('UI/package-lock.json') }}
+
+      - name: Snyk Test UI (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./UI
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor UI
+        run: snyk monitor
+        working-directory: ./UI
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Test authdb (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./auth/src/authdb
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor authdb
+        run: snyk monitor
+        working-directory: ./auth/src/authdb
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Test auth main (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./auth/src/main
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor auth main
+        run: snyk monitor
+        working-directory: ./auth/src/main
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Cache pip dependencies (weather)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('weather/requirements.txt') }}
+
+      - name: Install Python dependencies (weather)
+        run: pip install -r requirements.txt
+        working-directory: ./weather
+
+      - name: Snyk Test weather (fail on high+)
+        run: snyk test --severity-threshold=high
+        working-directory: ./weather
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Monitor weather
+        run: snyk monitor
+        working-directory: ./weather
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  Sonarqube-Analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=itvisionary-project
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/.git/**
+            -Dsonar.verbose=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: http://13.221.216.62:9000
+      - name: SonarQube Quality Gate check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
+          pollingTimeoutSec: 120
+ 
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: http://13.221.216.62:9000
+    
+
+
+
+  build-and-analyze:
+    name: Build, Push & Analyze Code
+    needs: [snyk-scan, Sonarqube-Analysis] 
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        working-directory: ./UI
+        run: npm install
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set short commit SHA
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build & Push Auth Image
+        run: |
+          docker build -t $ECR_URI_AUTH:${TAG} ./auth
+          docker push $ECR_URI_AUTH:${TAG}
+
+      - name: Build & Push Weather Image
+        run: |
+          docker build -t $ECR_URI_WEATHER:${TAG} ./weather
+          docker push $ECR_URI_WEATHER:${TAG}
+
+      - name: Build & Push UI Image
+        run: |
+          docker build -t $ECR_URI_UI:${TAG} ./UI
+          docker push $ECR_URI_UI:${TAG}
+
+    

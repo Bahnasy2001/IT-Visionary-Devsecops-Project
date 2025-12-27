@@ -1,0 +1,205 @@
+name: "IAC pipeline"
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - terraform/**
+      - .github/workflows/terraform.yml  
+  pull_request:
+    branches:
+      - main
+    paths:
+      - terraform/**
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Select environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      action:
+        description: 'Select action: apply or destroy'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy    
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ${{ secrets.ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.SECRET_ACCESS_KEY }}
+  BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE }}
+
+jobs:
+  terraform:
+    name: "Terraform Pipeline"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./terraform
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Set ENV_NAME variable
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "ENV_NAME=${{ github.event.inputs.env }}" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
+
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=${BUCKET_TF_STATE}"
+      - name: Create blogkey.pem from secret
+        run: |
+          echo "${{ secrets.BLOGKEY_PEM }}" > blogkey.pem
+          chmod 600 blogkey.pem
+
+      - name: Select or Create Workspace
+        run: |
+          echo "Using workspace: $ENV_NAME"
+          terraform workspace select "$ENV_NAME" || terraform workspace new "$ENV_NAME"
+
+      - name: Terraform Fmt
+        run: terraform fmt
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan --input=false --out=tfplan -var-file="$ENV_NAME.tfvars"
+        continue-on-error: true
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Verify working directory and files
+        run: |
+          echo "Current working directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo "Terraform files:"
+          find . -name "*.tf" -type f
+
+      - name: Run Checkov Scan (JSON)
+        run: |
+          checkov -d . --output json --output-file-path ./checkov-report.json
+          echo "Checkov JSON scan completed"
+          ls -la checkov-report.json || echo "JSON report not found"
+
+      - name: Show first lines of Checkov report
+        run: |
+          if [ -f "./checkov-report.json" ]; then
+            echo "Checkov report found, showing first 20 lines:"
+            head -n 20 ./checkov-report.json
+          else
+            echo "Checkov report file not found"
+            echo "Current directory contents:"
+            ls -la
+            echo "Trying to find any checkov files:"
+            find . -name "*checkov*" -type f
+          fi
+
+      - name: Upload Checkov JSON Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-json-report
+          path: ./terraform/checkov-report.json
+        continue-on-error: true
+
+      
+      - name: Terraform Apply
+        id: apply
+        run: |
+          terraform apply -var-file="dev.tfvars" -auto-approve -input=false -parallelism=10 tfplan
+      
+      - name: Trigger Success Event
+        if: ${{ success() && steps.apply.outcome == 'success' }}
+        run: |
+          aws events put-events --entries '[{
+            "Source": "custom.terraform",
+            "DetailType": "Terraform Apply Success",
+            "Detail": "{}"
+          }]'
+
+      - name: Trigger Failure Event
+        if: ${{ failure() || steps.apply.outcome == 'failure' }}
+        run: |
+          aws events put-events --entries '[{
+            "Source": "custom.terraform",
+            "DetailType": "Terraform Apply Failed",
+            "Detail": "{}"
+          }]'
+
+      - name: Fail if apply failed
+        if: failure()
+        run: exit 1
+      - name: Terraform Output
+        working-directory: terraform
+        run: |
+          mkdir -p terraform_outputs
+          terraform output -json > terraform_outputs/output.json
+
+      - name: Upload Terraform Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: terraform/terraform_outputs
+
+
+      - name: Terraform Output
+        if: success()
+        run: terraform output -json > output.json
+
+      - name: Notify Slack about Apply result
+        if: always()
+        run: |
+          if [ "${{ steps.apply.outcome }}" == "success" ]; then
+            COLOR="#36a64f"
+            MESSAGE="✅ Terraform apply succeeded in *${{ github.workflow }}* on *${{ github.ref_name }}*"
+          else
+            COLOR="#ff0000"
+            MESSAGE="❌ Terraform apply failed in *${{ github.workflow }}* on *${{ github.ref_name }}*"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [
+                {
+                  \"color\": \"$COLOR\",
+                  \"text\": \"$MESSAGE\",
+                  \"fields\": [
+                    {\"title\": \"Repository\", \"value\": \"${{ github.repository }}\", \"short\": true},
+                    {\"title\": \"Ref\", \"value\": \"${{ github.ref_name }}\", \"short\": true},
+                    {\"title\": \"Actor\", \"value\": \"${{ github.actor }}\", \"short\": true}
+                  ]
+                }
+              ]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL_IAC }}
+  
+      
+###S

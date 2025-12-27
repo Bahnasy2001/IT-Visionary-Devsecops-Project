@@ -1,0 +1,69 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+  # workflow_run:
+  #   workflows: [CI-Pipeline]
+  #   types:
+  #     - completed
+
+env:
+  AWS_REGION: us-east-1
+
+  PRIVATE_IPS: 10.0.12.21 10.0.11.9
+
+jobs:
+  deploy:
+    name: Deploy via Bastion to Private EC2s
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up SSH Key for Bastion
+        run: |
+          echo "${{ secrets.BLOGKEY_PEM }}" > bastion_key.pem
+          chmod 600 bastion_key.pem
+
+      - name: SSH to Bastion and Deploy to Private EC2s
+        run: |
+          for ip in $PRIVATE_IPS; do
+            echo "Deploying to $ip via Bastion..."
+
+            ssh -o StrictHostKeyChecking=no -i bastion_key.pem ubuntu@${{ secrets.BASTION_PUBLIC_IP }} "
+              ssh -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/blogkey.pem ubuntu@$ip '
+                cd /home/ubuntu/
+
+                rm -rf IT-Visionary-Devsecops-Project
+                git clone https://github.com/visionary-team2025/IT-Visionary-Devsecops-Project.git
+                cd IT-Visionary-Devsecops-Project/
+                git checkout dev
+                docker compose up -d --build
+              '
+            "
+          done
+
+      - name: Slack Notification on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "✅ *CD Pipeline Success*: Deployment to EC2 instances via Bastion was successful!"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Slack Notification on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "❌ *CD Pipeline Failed*: Deployment to EC2 instances via Bastion failed. Check logs for details."
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
