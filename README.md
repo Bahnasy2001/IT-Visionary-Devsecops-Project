@@ -124,9 +124,3 @@ To ensure visibility and reliability:
 📧 Email: [hassanbahnasy872@gmail.com](mailto:hassanbahnasy872@gmail.com)
 🔗 LinkedIn: [linkedin.com/in/hassanbahnasy](https://www.linkedin.com/in/hassanbahnasy)
 💻 GitHub: [github.com/Bahnasy2001](https://github.com/Bahnasy2001)
-
-* 🎨 نزود **Architecture Diagram section**
-* 📄 نخليه **أقصر للـ CV**
-* 🏢 نخليه **Enterprise-style README**
-
-قولّي وأنا أظبطهولك فورًا 👌
